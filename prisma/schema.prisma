@@ -25,7 +25,7 @@ model User {
   is_active  Boolean  @default(true) // Soft delete
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
-
+  
   // Relations
   loans             Loan[] // Peminjaman yang dibuat user
   approved_loans    Loan[]             @relation("ApprovedLoans") // Peminjaman yang di-approve
@@ -35,7 +35,7 @@ model User {
   articles          Article[] // Article yang dibuat user
   activity_logs     ActivityLog[]
   registrationCodes RegistrationCode[]
-
+  
   @@map("users")
 }
 
@@ -52,10 +52,10 @@ model Category {
   deskripsi  String?
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
-
+  
   // Relations
   equipment Equipment[]
-
+  
   @@map("categories")
 }
 
@@ -73,11 +73,11 @@ model Equipment {
   deskripsi   String?
   created_at  DateTime        @default(now())
   updated_at  DateTime        @updatedAt
-
+  
   // Relations
   kategori Category @relation(fields: [kategori_id], references: [id], onDelete: Restrict)
   loans    Loan[]
-
+  
   @@index([kategori_id, status]) // Filter alat per kategori dan status
   @@index([status, stok]) // Query alat tersedia
   @@map("equipment")
@@ -112,7 +112,7 @@ model Loan {
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
-
+  
   // Relations
   user      User      @relation(fields: [user_id], references: [id], onDelete: Restrict)
   equipment Equipment @relation(fields: [equipment_id], references: [id], onDelete: Restrict)
@@ -221,10 +221,10 @@ model ActivityLog {
   ip_address String?
   user_agent String?
   created_at DateTime @default(now())
-
+  
   // Relations
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
+  
   @@index([user_id])
   @@index([table_name])
   @@index([created_at])
