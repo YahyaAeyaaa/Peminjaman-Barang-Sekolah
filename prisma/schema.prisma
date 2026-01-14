@@ -1,251 +1,191 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
-  provider = "prisma-client"
-  output   = "../node_modules/.prisma/client"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
-// Model User - untuk 3 level pengguna (Admin, Petugas, Peminjam)
 model User {
-  id         String   @id @default(uuid())
-  username   String?  @unique // Optional, untuk backward compatibility
-  email      String   @unique // Required, untuk login universal
-  password   String // akan di-hash dengan bcrypt
-  role       UserRole @default(PEMINJAM)
-  first_name String // Nama depan
-  last_name  String // Nama belakang
-  kelas      String? // Kelas (untuk siswa/peminjam)
-  no_hp      String? // Nomor HP untuk notifikasi
-  alamat     String? // Alamat pengguna
-  is_active  Boolean  @default(true) // Soft delete
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-  
-  // Relations
-  loans             Loan[] // Peminjaman yang dibuat user
-  approved_loans    Loan[]             @relation("ApprovedLoans") // Peminjaman yang di-approve
-  rejected_loans    Loan[]             @relation("RejectedLoans") // Peminjaman yang di-reject
-  returns_made      Return[]           @relation("MadeReturns") // Pengembalian yang dibuat user
-  returns_received  Return[]           @relation("ReceivedReturns") // Pengembalian yang diterima
-  articles          Article[] // Article yang dibuat user
+  id                String             @id @default(uuid())
+  username          String?            @unique
+  password          String
+  role              UserRole           @default(PEMINJAM)
+  email             String             @unique
+  no_hp             String?
+  alamat            String?
+  is_active         Boolean            @default(true)
+  created_at        DateTime           @default(now())
+  updated_at        DateTime           @updatedAt
+  first_name        String
+  kelas             String?
+  last_name         String
   activity_logs     ActivityLog[]
+  articles          Article[]
+  approved_loans    Loan[]             @relation("ApprovedLoans")
+  rejected_loans    Loan[]             @relation("RejectedLoans")
+  loans             Loan[]
   registrationCodes RegistrationCode[]
-  
+  returns_received  Return[]           @relation("ReceivedReturns")
+  returns_made      Return[]           @relation("MadeReturns")
+
   @@map("users")
 }
 
-enum UserRole {
-  ADMIN
-  PETUGAS
-  PEMINJAM
-}
-
-// Model Category - untuk kategori alat
 model Category {
-  id         String   @id @default(uuid())
-  nama       String   @unique
+  id         String      @id @default(uuid())
+  nama       String      @unique
   deskripsi  String?
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-  
-  // Relations
-  equipment Equipment[]
-  
+  created_at DateTime    @default(now())
+  updated_at DateTime    @updatedAt
+  equipment  Equipment[]
+
   @@map("categories")
 }
 
-// Model Equipment - untuk data alat yang bisa dipinjam
 model Equipment {
   id          String          @id @default(uuid())
   nama        String
-  kode_alat   String?         @unique // Kode unik alat (optional)
+  kode_alat   String?         @unique
   kategori_id String
   stok        Int             @default(0)
   status      EquipmentStatus @default(AVAILABLE)
-  gambar      String? // URL foto/gambar alat
-  harga_sewa  Decimal?        @db.Decimal(10, 2) // Harga sewa per hari (untuk laporan)
-  harga_alat  Decimal?        @db.Decimal(10, 2) // Harga beli/replacement alat (untuk hitung denda kerusakan)
+  gambar      String?
+  harga_sewa  Decimal?        @db.Decimal(10, 2)
   deskripsi   String?
   created_at  DateTime        @default(now())
   updated_at  DateTime        @updatedAt
-  
-  // Relations
-  kategori Category @relation(fields: [kategori_id], references: [id], onDelete: Restrict)
-  loans    Loan[]
-  
-  @@index([kategori_id, status]) // Filter alat per kategori dan status
-  @@index([status, stok]) // Query alat tersedia
+  harga_alat  Decimal?        @db.Decimal(10, 2)
+  tags        String[]        @default([])
+  kategori    Category        @relation(fields: [kategori_id], references: [id])
+  loans       Loan[]
+
+  @@index([kategori_id, status])
+  @@index([status, stok])
   @@map("equipment")
 }
 
-enum EquipmentStatus {
-  AVAILABLE // Tersedia
-  UNAVAILABLE // Tidak tersedia
-  MAINTENANCE // Sedang maintenance
-}
-
-// Model Loan - untuk data peminjaman
 model Loan {
   id                String     @id @default(uuid())
-  user_id           String // Peminjam
+  user_id           String
   equipment_id      String
-  jumlah            Int        @default(1) // Jumlah alat yang dipinjam
+  jumlah            Int        @default(1)
   tanggal_pinjam    DateTime   @default(now())
   tanggal_kembali   DateTime?
-  tanggal_deadline  DateTime // Batas waktu pengembalian
-  tanggal_ambil     DateTime? // Tanggal barang diambil (setelah petugas konfirmasi)
-  batas_waktu_ambil DateTime? // Batas waktu pengambilan barang (setelah approve, default 3 hari)
+  tanggal_deadline  DateTime
   status            LoanStatus @default(PENDING)
   denda             Decimal    @default(0) @db.Decimal(10, 2)
   keterangan        String?
+  approved_by       String?
+  rejected_by       String?
+  rejection_reason  String?
+  approved_at       DateTime?
+  created_at        DateTime   @default(now())
+  updated_at        DateTime   @updatedAt
+  batas_waktu_ambil DateTime?
+  tanggal_ambil     DateTime?
+  approver          User?      @relation("ApprovedLoans", fields: [approved_by], references: [id])
+  equipment         Equipment  @relation(fields: [equipment_id], references: [id])
+  rejecter          User?      @relation("RejectedLoans", fields: [rejected_by], references: [id])
+  user              User       @relation(fields: [user_id], references: [id])
+  return            Return?
 
-  // Approval tracking
-  approved_by      String? // ID Petugas/Admin yang approve
-  rejected_by      String? // ID Petugas/Admin yang reject
-  rejection_reason String? // Alasan penolakan
-  approved_at      DateTime? // Waktu approval
-
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-  
-  // Relations
-  user      User      @relation(fields: [user_id], references: [id], onDelete: Restrict)
-  equipment Equipment @relation(fields: [equipment_id], references: [id], onDelete: Restrict)
-  approver  User?     @relation("ApprovedLoans", fields: [approved_by], references: [id])
-  rejecter  User?     @relation("RejectedLoans", fields: [rejected_by], references: [id])
-  return    Return? // Relasi ke pengembalian
-
-  @@index([user_id, status]) // Query peminjaman user berdasarkan status
-  @@index([equipment_id, status]) // Query alat yang dipinjam
-  @@index([status, tanggal_pinjam]) // Query untuk laporan
-  @@index([tanggal_deadline]) // Query untuk cek overdue
-  @@index([approved_by]) // Query peminjaman yang di-approve oleh petugas tertentu
+  @@index([user_id, status])
+  @@index([equipment_id, status])
+  @@index([status, tanggal_pinjam])
+  @@index([tanggal_deadline])
+  @@index([approved_by])
   @@map("loans")
 }
 
-enum LoanStatus {
-  PENDING // Menunggu persetujuan
-  APPROVED // Disetujui, siap diambil (belum diambil)
-  REJECTED // Ditolak
-  BORROWED // Barang sudah diambil, sedang dipinjam
-  RETURNED // Sudah dikembalikan
-  OVERDUE // Terlambat mengembalikan
-  EXPIRED // Melewati batas waktu pengambilan (auto-cancel)
-}
-
-// Model Return - untuk data pengembalian alat (Opsi B: Model terpisah)
 model Return {
   id                   String          @id @default(uuid())
-  loan_id              String          @unique // Satu loan hanya bisa dikembalikan sekali
-  returned_by          String // ID Peminjam yang mengembalikan
-  received_by          String? // ID Petugas yang menerima pengembalian
+  loan_id              String          @unique
+  returned_by          String
+  received_by          String?
   tanggal_kembali      DateTime        @default(now())
-  kondisi_alat         ReturnCondition // Kondisi alat saat dikembalikan
-  catatan              String? // Catatan tambahan (misal: ada kerusakan minor)
-  foto_bukti           String? // URL foto bukti kondisi alat (optional)
-  denda_kerusakan      Decimal         @default(0) @db.Decimal(10, 2) // Biaya kerusakan (dihitung otomatis: harga_alat × persentase)
-  persentase_kerusakan Decimal?        @db.Decimal(5, 2) // Persentase kerusakan yang digunakan (untuk audit: 15%, 40%, 70%, 100%)
-  denda_dibayar        Decimal         @default(0) @db.Decimal(10, 2) // Total denda yang sudah dibayar (denda telat + denda kerusakan)
+  kondisi_alat         ReturnCondition
+  catatan              String?
+  foto_bukti           String?
+  denda_dibayar        Decimal         @default(0) @db.Decimal(10, 2)
   created_at           DateTime        @default(now())
   updated_at           DateTime        @updatedAt
-
-  // Relations
-  loan     Loan  @relation(fields: [loan_id], references: [id], onDelete: Restrict)
-  returner User  @relation("MadeReturns", fields: [returned_by], references: [id], onDelete: Restrict)
-  receiver User? @relation("ReceivedReturns", fields: [received_by], references: [id])
+  denda_kerusakan      Decimal         @default(0) @db.Decimal(10, 2)
+  persentase_kerusakan Decimal?        @db.Decimal(5, 2)
+  confirmed_at         DateTime?
+  denda_telat          Decimal         @default(0) @db.Decimal(10, 2)
+  status               ReturnStatus    @default(MENUNGGU_PEMBAYARAN)
+  total_denda          Decimal         @default(0) @db.Decimal(10, 2)
+  loan                 Loan            @relation(fields: [loan_id], references: [id])
+  receiver             User?           @relation("ReceivedReturns", fields: [received_by], references: [id])
+  returner             User            @relation("MadeReturns", fields: [returned_by], references: [id])
 
   @@index([loan_id])
   @@index([returned_by])
   @@index([received_by])
   @@index([tanggal_kembali])
   @@index([kondisi_alat])
+  @@index([status])
   @@map("returns")
 }
 
-enum ReturnCondition {
-  BAIK // Alat dalam kondisi baik (0% biaya)
-  RUSAK_RINGAN // Ada kerusakan ringan (10-20% dari harga_alat)
-  RUSAK_SEDANG // Ada kerusakan sedang (30-50% dari harga_alat)
-  RUSAK_BERAT // Ada kerusakan berat (60-80% dari harga_alat)
-  HILANG // Alat hilang (100% dari harga_alat)
-}
-
-// Model Article - untuk artikel di website (Hanya Admin bisa manage)
 model Article {
   id           String        @id @default(uuid())
-  judul        String // Judul artikel
-  slug         String        @unique // URL-friendly slug (contoh: "cara-meminjam-alat")
-  konten       String        @db.Text // Isi artikel (Text untuk konten panjang)
-  excerpt      String?       @db.Text // Ringkasan/pendahuluan artikel
-  thumbnail    String? // URL gambar thumbnail
-  tags         String[]      @default([]) // Array tags (contoh: ["peminjaman", "alat", "tutorial"])
-  view_count   Int           @default(0) // Jumlah view/read artikel
-  status       ArticleStatus @default(DRAFT) // Status artikel
-  author_id    String // Admin yang membuat artikel
-  published_at DateTime? // Tanggal publish (jika status PUBLISHED)
+  judul        String
+  slug         String        @unique
+  konten       String
+  excerpt      String?
+  thumbnail    String?
+  tags         String[]      @default([])
+  view_count   Int           @default(0)
+  status       ArticleStatus @default(DRAFT)
+  author_id    String
+  published_at DateTime?
   created_at   DateTime      @default(now())
   updated_at   DateTime      @updatedAt
-
-  // Relations
-  author User @relation(fields: [author_id], references: [id], onDelete: Restrict)
+  author       User          @relation(fields: [author_id], references: [id])
 
   @@index([author_id])
   @@index([status])
   @@index([slug])
   @@index([published_at])
   @@index([created_at])
-  @@index([view_count]) // Untuk sorting artikel populer
+  @@index([view_count])
   @@map("articles")
 }
 
-enum ArticleStatus {
-  DRAFT // Draft (belum publish)
-  PUBLISHED // Sudah dipublish
-  ARCHIVED // Diarsipkan
-}
-
-// Model ActivityLog - untuk log aktivitas (Admin)
 model ActivityLog {
   id         String   @id @default(uuid())
   user_id    String
-  action     String // CREATE, UPDATE, DELETE, etc.
-  table_name String // Nama tabel yang diubah
-  record_id  String // ID record yang diubah
-  old_data   Json? // Data lama (optional)
-  new_data   Json? // Data baru (optional)
+  action     String
+  table_name String
+  record_id  String
+  old_data   Json?
+  new_data   Json?
   ip_address String?
   user_agent String?
   created_at DateTime @default(now())
-  
-  // Relations
-  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
   @@index([user_id])
   @@index([table_name])
   @@index([created_at])
   @@map("activity_logs")
 }
 
-// Model RegistrationCode - untuk kode registrasi siswa (Admin generate)
 model RegistrationCode {
   id          String             @id @default(uuid())
-  code        String             @unique // Kode registrasi (contoh: "REG-2024-X1A")
-  keterangan  String? // Deskripsi/keterangan (contoh: "Untuk kelas X-1 A")
-  max_usage   Int                @default(0) // Maksimal penggunaan (0 = unlimited)
-  used_count  Int                @default(0) // Jumlah sudah dipakai
-  expire_date DateTime? // Tanggal expire (null = permanent)
-  status      RegistrationStatus @default(AKTIF) // Status kode
-  created_by  String // Admin yang membuat kode
+  code        String             @unique
+  keterangan  String?
+  max_usage   Int                @default(0)
+  used_count  Int                @default(0)
+  expire_date DateTime?
+  status      RegistrationStatus @default(AKTIF)
+  created_by  String
   created_at  DateTime           @default(now())
   updated_at  DateTime           @updatedAt
-
-  // Relations
-  creator User? @relation(fields: [created_by], references: [id], onDelete: Restrict)
+  creator     User               @relation(fields: [created_by], references: [id])
 
   @@index([code])
   @@index([status])
@@ -254,8 +194,49 @@ model RegistrationCode {
   @@map("registration_codes")
 }
 
+enum UserRole {
+  ADMIN
+  PETUGAS
+  PEMINJAM
+}
+
+enum EquipmentStatus {
+  AVAILABLE
+  UNAVAILABLE
+  MAINTENANCE
+}
+
+enum LoanStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  BORROWED
+  RETURNED
+  OVERDUE
+  EXPIRED
+}
+
+enum ReturnCondition {
+  BAIK
+  RUSAK_RINGAN
+  RUSAK_BERAT
+  HILANG
+  RUSAK_SEDANG
+}
+
+enum ReturnStatus {
+  MENUNGGU_PEMBAYARAN
+  DIKEMBALIKAN
+}
+
+enum ArticleStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
 enum RegistrationStatus {
-  AKTIF // Kode aktif, bisa dipakai
-  NONAKTIF // Kode dinonaktifkan manual oleh admin
-  EXPIRED // Kode sudah expire (auto-update)
+  AKTIF
+  NONAKTIF
+  EXPIRED
 }
