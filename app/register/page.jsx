@@ -5,7 +5,7 @@ import Input from '@/components/forminput';
 import Button from '@/components/button';
 import { Mail, Lock, Eye, EyeOff, User, KeyRound, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
-import { registerSchema } from './validateRegis';
+import { registerSchema } from '../validateRegis';
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -141,12 +141,11 @@ export default function RegisterPage() {
             <div className="w-8 h-8 bg-[#316e94] rounded-full"></div>
             <span className="text-black font-medium">Terserah Deh.</span>
           </div>
-          <div className="flex items-center gap-6 text-gray-400">
-            <a href="#" className="hover:text-gray-600">Profile Dev</a>
-          </div>
+          <Link href="/Login" className="text-sm text-gray-600 hover:text-gray-900">
+            Login
+          </Link>
         </nav>
 
-        {/* Form Content */}
         <div className="flex-1 flex flex-col justify-center max-w-md mx-auto">
           <h1 className="text-4xl font-bold text-black mb-2">
             Register.
@@ -183,22 +182,20 @@ export default function RegisterPage() {
                       required
                       error={codeError}
                       focusColor="#316e94"
-                      className="flex-1"
                     />
                     <Button
                       type="submit"
                       variant="primary"
                       bgColor="#316e94"
-                      hoverColor="#255a7a"
+                      hoverColor="#2a5a7a"
                       radius="full"
-                      loading={verifyingCode}
-                      className="px-6"
+                      disabled={verifyingCode}
                     >
-                      Verifikasi
+                      {verifyingCode ? 'Memverifikasi...' : 'Verifikasi'}
                     </Button>
                   </div>
                   {codeError && (
-                    <p className="mt-1 text-sm text-red-600">{codeError}</p>
+                    <p className="mt-2 text-sm text-red-600">{codeError}</p>
                   )}
                   <p className="mt-2 text-xs text-gray-500">
                     Masukkan kode registrasi yang diberikan oleh admin
@@ -264,7 +261,7 @@ export default function RegisterPage() {
                 label="Email"
                 type="email"
                 name="email"
-                placeholder="nama@email.com"
+                placeholder="john.doe@example.com"
                 value={registerForm.email}
                 onChange={handleRegisterChange}
                 leftIcon={<Mail size={18} />}
@@ -274,99 +271,85 @@ export default function RegisterPage() {
                 focusColor="#316e94"
               />
 
-              {/* Password */}
-              <Input
-                label="Password"
-                type={showPassword ? 'text' : 'password'}
-                name="password"
-                placeholder="Minimal 6 karakter"
-                value={registerForm.password}
-                onChange={handleRegisterChange}
-                leftIcon={<Lock size={18} />}
-                radius="full"
-                required
-                error={errors.password}
-                helperText="Minimal 6 karakter"
-                rightIcon={
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                }
-                focusColor="#316e94"
-              />
-
-              {/* Confirm Password */}
-              <Input
-                label="Konfirmasi Password"
-                type={showConfirmPassword ? 'text' : 'password'}
-                name="confirm_password"
-                placeholder="Ulangi password"
-                value={registerForm.confirm_password}
-                onChange={handleRegisterChange}
-                leftIcon={<Lock size={18} />}
-                radius="full"
-                required
-                error={errors.confirm_password}
-                rightIcon={
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                }
-                focusColor="#316e94"
-              />
-
-              {/* Optional Fields */}
-              <div className="pt-2 border-t border-gray-200">
-                <p className="text-sm text-gray-500 mb-3">Informasi Tambahan (Opsional)</p>
-                
+              {/* Password & Confirm Password */}
+              <div className="grid grid-cols-2 gap-4">
                 <Input
-                  label="Kelas"
-                  type="text"
-                  name="kelas"
-                  placeholder="Contoh: X-1 A"
-                  value={registerForm.kelas}
+                  label="Password"
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  placeholder="Minimal 6 karakter"
+                  value={registerForm.password}
                   onChange={handleRegisterChange}
-                  leftIcon={<User size={18} />}
+                  leftIcon={<Lock size={18} />}
+                  rightIcon={
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  }
                   radius="full"
+                  required
+                  error={errors.password}
                   focusColor="#316e94"
                 />
-
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                  <Input
-                    label="No. HP"
-                    type="tel"
-                    name="no_hp"
-                    placeholder="081234567890"
-                    value={registerForm.no_hp}
-                    onChange={handleRegisterChange}
-                    leftIcon={<User size={18} />}
-                    radius="full"
-                    focusColor="#316e94"
-                  />
-                </div>
-
-                <div className="mt-4">
-                  <Input
-                    label="Alamat"
-                    type="text"
-                    name="alamat"
-                    placeholder="Alamat lengkap"
-                    value={registerForm.alamat}
-                    onChange={handleRegisterChange}
-                    leftIcon={<User size={18} />}
-                    radius="full"
-                    focusColor="#316e94"
-                  />
-                </div>
+                <Input
+                  label="Konfirmasi Password"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  name="confirm_password"
+                  placeholder="Ulangi password"
+                  value={registerForm.confirm_password}
+                  onChange={handleRegisterChange}
+                  leftIcon={<Lock size={18} />}
+                  rightIcon={
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  }
+                  radius="full"
+                  required
+                  error={errors.confirm_password}
+                  focusColor="#316e94"
+                />
               </div>
+
+              {/* Kelas, No HP, Alamat (Optional) */}
+              <Input
+                label="Kelas (Opsional)"
+                type="text"
+                name="kelas"
+                placeholder="X-1 A"
+                value={registerForm.kelas}
+                onChange={handleRegisterChange}
+                radius="full"
+                focusColor="#316e94"
+              />
+              <Input
+                label="No. HP (Opsional)"
+                type="text"
+                name="no_hp"
+                placeholder="081234567890"
+                value={registerForm.no_hp}
+                onChange={handleRegisterChange}
+                radius="full"
+                focusColor="#316e94"
+              />
+              <Input
+                label="Alamat (Opsional)"
+                type="text"
+                name="alamat"
+                placeholder="Alamat lengkap"
+                value={registerForm.alamat}
+                onChange={handleRegisterChange}
+                radius="full"
+                focusColor="#316e94"
+              />
 
               {/* Error Message */}
               {errors.submit && (
@@ -375,34 +358,29 @@ export default function RegisterPage() {
                 </div>
               )}
 
-            {/* Submit Button */}
-            <div className="pt-4">
+              {/* Submit Button */}
               <Button
-                variant="primary"
-                bgColor="#de913e"
-                hoverColor="#125475"
-                className="w-full"
                 type="submit"
+                variant="primary"
+                bgColor="#316e94"
+                hoverColor="#2a5a7a"
                 radius="full"
-                loading={loading}
+                className="w-full"
+                disabled={loading}
               >
-                Buat Akun
+                {loading ? 'Mendaftar...' : 'Register'}
               </Button>
-            </div>
-          </form>
+            </form>
         </div>
       </div>
 
-      {/* Right Side - Image with Wavy Overlay */}
+      {/* Right Side - Image */}
       <div className="flex-1 relative hidden lg:block min-h-screen overflow-hidden">
-        {/* Background Image */}
         <img
           src="/image/gurun.jpg"
           alt="Scenic background"
           className="absolute inset-0 w-full h-full object-cover"
         />
-        
-        {/* Wavy white overlay - SMOOTH CURVE */}
         <div 
           className="absolute left-0 top-0 w-4/5 h-full bg-gradient-to-r from-[#faf8f5] via-white/95 to-transparent"
           style={{
@@ -413,4 +391,6 @@ export default function RegisterPage() {
     </div>
   );
 }
+
+
 

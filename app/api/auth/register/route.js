@@ -52,9 +52,9 @@ export async function POST(request) {
       );
     }
 
-    // Validasi kode registrasi
+    // Validasi kode registrasi (case insensitive)
     const registrationCode = await prisma.registrationCode.findUnique({
-      where: { code: code.trim() },
+      where: { code: code.trim().toUpperCase() },
     });
 
     if (!registrationCode) {

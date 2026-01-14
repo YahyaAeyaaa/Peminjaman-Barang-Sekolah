@@ -4,15 +4,19 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Input from '@/components/forminput';
 import Button from '@/components/button';
-import { products } from '../../data/products';
-import { Calendar, Package, FileText } from 'lucide-react';
+import { equipmentAPI } from '@/lib/api/equipment';
+import { loansAPI } from '@/lib/api/loans';
+import { useToast } from '@/components/ToastProvider';
+import { Calendar, Package } from 'lucide-react';
 
 export default function PinjamPage() {
   const params = useParams();
   const router = useRouter();
+  const toast = useToast();
   const productId = params.id;
   
-  const product = products.find(p => p.id === productId);
+  const [product, setProduct] = useState(null);
+  const [loadingProduct, setLoadingProduct] = useState(true);
   
   const [formData, setFormData] = useState({
     tanggalPinjam: '',
@@ -24,16 +28,51 @@ export default function PinjamPage() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
+  // Fetch product dari API
   useEffect(() => {
-    if (!product) {
-      router.push('/peminjam/product');
-      return;
+    const fetchProduct = async () => {
+      try {
+        setLoadingProduct(true);
+        const response = await equipmentAPI.getById(productId);
+        
+        if (response.success) {
+          const equipment = response.data;
+          // Transform equipment ke format product
+          const transformedProduct = {
+            id: equipment.id,
+            name: equipment.nama,
+            type: equipment.kategori?.nama || 'Lainnya',
+            description: equipment.deskripsi || 'Tidak ada deskripsi',
+            image: equipment.gambar || null,
+            stock: equipment.stok || 0,
+            available: equipment.status === 'AVAILABLE' && equipment.stok > 0,
+            tags: equipment.tags || [],
+            kode_alat: equipment.kode_alat,
+            kategori_id: equipment.kategori_id,
+          };
+          
+          setProduct(transformedProduct);
+          
+          // Set tanggal peminjaman ke hari ini (read-only)
+          const today = new Date().toISOString().split('T')[0];
+          setFormData(prev => ({ ...prev, tanggalPinjam: today }));
+        } else {
+          toast.error(response.error || 'Produk tidak ditemukan');
+          router.push('/peminjam/product');
+        }
+      } catch (error) {
+        console.error('Error fetching product:', error);
+        toast.error('Gagal memuat data produk');
+        router.push('/peminjam/product');
+      } finally {
+        setLoadingProduct(false);
+      }
+    };
+
+    if (productId) {
+      fetchProduct();
     }
-    
-    // Set tanggal peminjaman ke hari ini (read-only)
-    const today = new Date().toISOString().split('T')[0];
-    setFormData(prev => ({ ...prev, tanggalPinjam: today }));
-  }, [product, router]);
+  }, [productId, router, toast]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -81,30 +120,49 @@ export default function PinjamPage() {
     if (!validateForm()) return;
     
     setLoading(true);
+    setErrors({});
     
-    // Simulasi API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Generate ID peminjaman (dalam real app, ini dari API)
-    const peminjamanId = `pinjam-${Date.now()}`;
-    
-    // Simpan ke localStorage untuk demo (dalam real app, ini ke database)
-    const peminjamanData = {
-      id: peminjamanId,
-      productId: product.id,
-      product: product,
-      ...formData,
-      status: 'MENUNGGU_APPROVAL',
-      createdAt: new Date().toISOString(),
-    };
-    
-    const existingPeminjaman = JSON.parse(localStorage.getItem('peminjaman') || '[]');
-    existingPeminjaman.push(peminjamanData);
-    localStorage.setItem('peminjaman', JSON.stringify(existingPeminjaman));
-    
-    // Redirect ke halaman detail peminjaman
-    router.push(`/peminjam/peminjaman/${peminjamanId}`);
+    try {
+      // Convert tanggal deadline ke ISO string
+      const tanggalDeadline = new Date(formData.estimasiKembali);
+      tanggalDeadline.setHours(23, 59, 59, 999); // Set ke akhir hari
+      
+      // Submit ke API
+      const response = await loansAPI.create({
+        equipment_id: product.id,
+        jumlah: formData.jumlah,
+        tanggal_deadline: tanggalDeadline.toISOString(),
+        keterangan: formData.alasan.trim(),
+      });
+
+      if (response.success) {
+        toast.success('Peminjaman berhasil diajukan, menunggu persetujuan petugas');
+        // Redirect ke halaman peminjaman
+        router.push('/peminjam/peminjaman');
+      } else {
+        setErrors({ submit: response.error || 'Gagal mengajukan peminjaman' });
+        toast.error(response.error || 'Gagal mengajukan peminjaman');
+      }
+    } catch (error) {
+      console.error('Error submitting loan:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Gagal mengajukan peminjaman';
+      setErrors({ submit: errorMessage });
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  if (loadingProduct) {
+    return (
+      <div className="min-h-screen p-8 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mb-4"></div>
+          <p className="text-gray-600">Memuat data produk...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!product) {
     return null;
@@ -230,6 +288,13 @@ export default function PinjamPage() {
             )}
           </div>
 
+          {/* Error Message */}
+          {errors.submit && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{errors.submit}</p>
+            </div>
+          )}
+
           {/* Action Buttons */}
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
             <Button
@@ -237,6 +302,7 @@ export default function PinjamPage() {
               variant="outline"
               onClick={() => router.back()}
               className="px-6"
+              disabled={loading}
             >
               Batal
             </Button>

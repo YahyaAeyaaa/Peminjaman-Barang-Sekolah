@@ -11,17 +11,23 @@ export default async function middleware(req) {
     return NextResponse.next();
   }
 
+  // API routes - bypass middleware (protection di level route handler)
+  if (pathname.startsWith('/api/')) {
+    return NextResponse.next();
+  }
+
   // Get token dari JWT (NextAuth)
   const token = await getToken({ 
     req, 
     secret: process.env.NEXTAUTH_SECRET || 'fallback-secret-key-for-development-only-change-in-production'
   });
 
-  // Protected routes - perlu login
+  // Protected routes - setiap role hanya bisa akses halamannya sendiri
   const protectedRoutes = {
     '/admin': ['ADMIN'],
-    '/petugas': ['ADMIN', 'PETUGAS'],
-    '/peminjam': ['ADMIN', 'PETUGAS', 'PEMINJAM'],
+    '/petugas': ['PETUGAS'],
+    '/peminjam': ['PEMINJAM'],
+    '/dashboard': ['ADMIN', 'PETUGAS', 'PEMINJAM'], // Jika ada dashboard umum
   };
 
   // Cek apakah pathname termasuk protected route
@@ -51,8 +57,22 @@ export default async function middleware(req) {
     }
   }
 
-  // Route lainnya, lanjutkan
-  return NextResponse.next();
+  // Route lainnya yang tidak public dan tidak API - butuh auth
+  // Jika user belum login, redirect ke login
+  if (!token) {
+    const loginUrl = new URL('/Login', req.url);
+    loginUrl.searchParams.set('callbackUrl', pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  // Jika sudah login tapi route tidak dikenal, redirect ke dashboard sesuai role
+  const userRole = token.role;
+  let redirectUrl = '/Login';
+  if (userRole === 'ADMIN') redirectUrl = '/admin';
+  else if (userRole === 'PETUGAS') redirectUrl = '/petugas';
+  else if (userRole === 'PEMINJAM') redirectUrl = '/peminjam';
+  
+  return NextResponse.redirect(new URL(redirectUrl, req.url));
 }
 
 export const config = {

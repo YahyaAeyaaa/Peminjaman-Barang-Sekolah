@@ -6,37 +6,61 @@ import { StatCard } from './components/StatCard';
 import { QuickActionCard } from './components/QuickActionCard';
 import { quickActions } from './data/dashboardData';
 import { Clock, CheckCircle, Package, Users, FileText } from 'lucide-react';
+import { loansAPI } from '@/lib/api/loans';
+import { usersAPI } from '@/lib/api/users';
 
 export default function PetugasPage() {
   const [stats, setStats] = useState({
     pendingApproval: 0,
     activePeminjaman: 0,
-    overdueReturn: 0,
     totalUsers: 0,
   });
 
   useEffect(() => {
-    // Ambil data dari localStorage untuk hitung statistik
-    const allPeminjaman = JSON.parse(localStorage.getItem('peminjaman') || '[]');
+    // Ambil data statistik dari API nyata (bukan localStorage mock)
+      // Ambil data statistik dari API nyata (bukan localStorage mock)
+      const loadStats = async () => {
+        let pendingCount = 0;
+        let borrowedCount = 0;
+        let peminjamCount = 0;
     
-    const pending = allPeminjaman.filter(p => p.status === 'MENUNGGU_APPROVAL').length;
-    const active = allPeminjaman.filter(p => p.status === 'DISETUJUI' || p.status === 'DIPINJAM').length;
+        try {
+          const pendingRes = await loansAPI.getAll({ status: 'PENDING' });
+          if (pendingRes && pendingRes.success) {
+            pendingCount = pendingRes.data.length;
+          }
+        } catch (err) {
+          console.error('Gagal mengambil data pending loans:', err);
+        }
     
-    // Hitung overdue (estimasi kembali sudah lewat tapi belum dikembalikan)
-    const today = new Date();
-    const overdue = allPeminjaman.filter(p => {
-      if (p.status !== 'DIPINJAM' && p.status !== 'DISETUJUI') return false;
-      const estimasiKembali = new Date(p.estimasiKembali);
-      return estimasiKembali < today;
-    }).length;
+        try {
+          const borrowedRes = await loansAPI.getAll({ status: 'BORROWED' });
+          if (borrowedRes && borrowedRes.success) {
+            borrowedCount = borrowedRes.data.length;
+          }
+        } catch (err) {
+          console.error('Gagal mengambil data borrowed loans:', err);
+        }
     
-    setStats({
-      pendingApproval: pending,
-      activePeminjaman: active,
-      overdueReturn: overdue,
-      totalUsers: 0, // Dalam real app, ini dari API
-    });
-  }, []);
+        try {
+          const peminjamRes = await usersAPI.getAll({ role: 'PEMINJAM' });
+          if (peminjamRes && peminjamRes.success) {
+            peminjamCount = peminjamRes.data.length;
+          }
+        } catch (err) {
+          console.error('Gagal mengambil data peminjam:', err);
+        }
+    
+        setStats({
+          pendingApproval: pendingCount,
+          // Barang aktif = loan dengan status BORROWED (sedang dipinjam)
+          activePeminjaman: borrowedCount,
+          totalUsers: peminjamCount,
+        });
+      };
+    
+      loadStats();
+    }, []);
 
   return (
     <div className="min-h-screen p-8">
