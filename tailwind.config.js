@@ -9,6 +9,7 @@ module.exports = {
     extend: {
       fontFamily: {
         sans: ['var(--font-inter)', 'Inter', 'sans-serif'],
+        josefin: ['var(--font-josefin-sans)', 'Josefin Sans', 'sans-serif'],
       },
     },
   },

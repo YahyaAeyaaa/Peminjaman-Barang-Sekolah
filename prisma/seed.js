@@ -1,5 +1,5 @@
-const { PrismaClient } = require('@prisma/client')
 const bcrypt = require('bcryptjs')
+const { PrismaClient } = require('@prisma/client')
 
 const prisma = new PrismaClient()
 
@@ -63,38 +63,58 @@ async function main() {
   })
   console.log('✅ Peminjam created:', peminjam.email)
 
-  // Create Categories
+  // Create Categories (untuk RPL)
   const kategori1 = await prisma.category.upsert({
-    where: { nama: 'Elektronik' },
+    where: { nama: 'VGA' },
     update: {},
     create: {
-      nama: 'Elektronik',
-      deskripsi: 'Alat-alat elektronik'
+      nama: 'VGA',
+      deskripsi: 'Kartu grafis untuk rendering dan gaming'
     }
   })
   console.log('✅ Category created:', kategori1.nama)
 
   const kategori2 = await prisma.category.upsert({
-    where: { nama: 'Perkakas' },
+    where: { nama: 'RAM' },
     update: {},
     create: {
-      nama: 'Perkakas',
-      deskripsi: 'Alat-alat perkakas'
+      nama: 'RAM',
+      deskripsi: 'Memory RAM untuk komputer'
     }
   })
   console.log('✅ Category created:', kategori2.nama)
 
-  // Create Sample Equipment
+  const kategori3 = await prisma.category.upsert({
+    where: { nama: 'Processor' },
+    update: {},
+    create: {
+      nama: 'Processor',
+      deskripsi: 'CPU untuk komputer'
+    }
+  })
+  console.log('✅ Category created:', kategori3.nama)
+
+  const kategori4 = await prisma.category.upsert({
+    where: { nama: 'SSD' },
+    update: {},
+    create: {
+      nama: 'SSD',
+      deskripsi: 'Solid State Drive untuk storage'
+    }
+  })
+  console.log('✅ Category created:', kategori4.nama)
+
+  // Create Sample Equipment (untuk RPL)
   const equipment1 = await prisma.equipment.upsert({
     where: { id: '00000000-0000-0000-0000-000000000001' },
     update: {},
     create: {
       id: '00000000-0000-0000-0000-000000000001',
-      nama: 'Laptop Dell',
+      nama: 'RTX 4090',
       kategori_id: kategori1.id,
-      stok: 5,
+      stok: 2,
       status: 'AVAILABLE',
-      deskripsi: 'Laptop Dell untuk presentasi'
+      deskripsi: 'NVIDIA RTX 4090 24GB GDDR6X'
     }
   })
   console.log('✅ Equipment created:', equipment1.nama)
@@ -104,14 +124,42 @@ async function main() {
     update: {},
     create: {
       id: '00000000-0000-0000-0000-000000000002',
-      nama: 'Bor Listrik',
-      kategori_id: kategori2.id,
+      nama: 'RTX 2050',
+      kategori_id: kategori1.id,
       stok: 3,
       status: 'AVAILABLE',
-      deskripsi: 'Bor listrik untuk proyek'
+      deskripsi: 'NVIDIA RTX 2050 4GB GDDR6'
     }
   })
   console.log('✅ Equipment created:', equipment2.nama)
+
+  const equipment3 = await prisma.equipment.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000003' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0000-000000000003',
+      nama: 'DDR4 16GB',
+      kategori_id: kategori2.id,
+      stok: 5,
+      status: 'AVAILABLE',
+      deskripsi: 'RAM DDR4 16GB 3200MHz'
+    }
+  })
+  console.log('✅ Equipment created:', equipment3.nama)
+
+  const equipment4 = await prisma.equipment.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000004' },
+    update: {},
+    create: {
+      id: '00000000-0000-0000-0000-000000000004',
+      nama: 'Intel i7-13700K',
+      kategori_id: kategori3.id,
+      stok: 2,
+      status: 'AVAILABLE',
+      deskripsi: 'Intel Core i7-13700K Processor'
+    }
+  })
+  console.log('✅ Equipment created:', equipment4.nama)
 
   console.log('🎉 Seeding completed!')
   console.log('\n📝 Default credentials (Login dengan Email + Password):')

@@ -1,74 +1,59 @@
-import NextAuth from 'next-auth'
-import { NextResponse } from 'next/server'
+import { NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
+import { getToken } from 'next-auth/jwt';
 
-// Auth config minimal untuk middleware (tanpa Prisma)
-// Middleware hanya membaca session dari cookie, tidak perlu provider
-const middlewareAuthConfig = {
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.role = user.role
-        token.id = user.id
-        token.email = user.email
-        token.first_name = user.first_name
-        token.last_name = user.last_name
+export default async function middleware(req) {
+  const { pathname } = req.nextUrl;
+
+  // Public routes - tidak perlu auth
+  const publicRoutes = ['/Login', '/register', '/'];
+  if (publicRoutes.includes(pathname)) {
+    return NextResponse.next();
+  }
+
+  // Get token dari JWT (NextAuth)
+  const token = await getToken({ 
+    req, 
+    secret: process.env.NEXTAUTH_SECRET || 'fallback-secret-key-for-development-only-change-in-production'
+  });
+
+  // Protected routes - perlu login
+  const protectedRoutes = {
+    '/admin': ['ADMIN'],
+    '/petugas': ['ADMIN', 'PETUGAS'],
+    '/peminjam': ['ADMIN', 'PETUGAS', 'PEMINJAM'],
+  };
+
+  // Cek apakah pathname termasuk protected route
+  for (const [route, allowedRoles] of Object.entries(protectedRoutes)) {
+    if (pathname.startsWith(route)) {
+      // Jika belum login, redirect ke login
+      if (!token) {
+        const loginUrl = new URL('/Login', req.url);
+        loginUrl.searchParams.set('callbackUrl', pathname);
+        return NextResponse.redirect(loginUrl);
       }
-      return token
-    },
-    async session({ session, token }) {
-      if (token) {
-        session.user.id = token.id
-        session.user.role = token.role
-        session.user.email = token.email
-        session.user.first_name = token.first_name
-        session.user.last_name = token.last_name
+
+      // Cek role
+      const userRole = token.role;
+      if (!allowedRoles.includes(userRole)) {
+        // Role tidak sesuai, redirect ke dashboard sesuai role
+        let redirectUrl = '/Login';
+        if (userRole === 'ADMIN') redirectUrl = '/admin';
+        else if (userRole === 'PETUGAS') redirectUrl = '/petugas';
+        else if (userRole === 'PEMINJAM') redirectUrl = '/peminjam';
+        
+        return NextResponse.redirect(new URL(redirectUrl, req.url));
       }
-      return session
+
+      // Role sesuai, lanjutkan
+      return NextResponse.next();
     }
-  },
-  session: {
-    strategy: 'jwt',
-  },
-  secret: process.env.NEXTAUTH_SECRET,
+  }
+
+  // Route lainnya, lanjutkan
+  return NextResponse.next();
 }
-
-const { auth } = NextAuth(middlewareAuthConfig)
-
-export default auth((req) => {
-  const session = req.auth
-  const { pathname } = req.nextUrl
-  const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/register')
-  
-  // Jika sudah login dan akses halaman auth, redirect ke dashboard
-  if (session && isAuthPage) {
-    return NextResponse.redirect(new URL('/dashboard', req.url))
-  }
-
-  // Jika belum login dan akses protected route, redirect ke login
-  if (!session && !isAuthPage && pathname.startsWith('/dashboard')) {
-    return NextResponse.redirect(new URL('/login', req.url))
-  }
-
-  // Role-based access control
-  const userRole = session?.user?.role
-  
-  // Admin routes
-  if (pathname.startsWith('/admin') && userRole !== 'ADMIN') {
-    return NextResponse.redirect(new URL('/dashboard', req.url))
-  }
-  
-  // Petugas routes
-  if (pathname.startsWith('/petugas') && userRole !== 'PETUGAS' && userRole !== 'ADMIN') {
-    return NextResponse.redirect(new URL('/dashboard', req.url))
-  }
-  
-  // Peminjam routes
-  if (pathname.startsWith('/peminjam') && userRole !== 'PEMINJAM' && userRole !== 'ADMIN') {
-    return NextResponse.redirect(new URL('/dashboard', req.url))
-  }
-
-  return NextResponse.next()
-})
 
 export const config = {
   matcher: [
@@ -76,7 +61,7 @@ export const config = {
     '/admin/:path*',
     '/petugas/:path*',
     '/peminjam/:path*',
-    '/login',
+    '/Login',
     '/register',
-  ]
-}
+  ],
+};

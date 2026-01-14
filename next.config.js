@@ -12,6 +12,16 @@ const nextConfig = {
       };
     }
 
+    // Exclude Prisma Client from webpack bundling
+    if (isServer) {
+      config.externals = config.externals || [];
+      config.externals.push({
+        '@prisma/client': 'commonjs @prisma/client',
+        '.prisma/client': 'commonjs .prisma/client',
+      });
+    }
+
+    config.externals = config.externals || [];
     config.externals.push({
       'utf-8-validate': 'commonjs utf-8-validate',
       'bufferutil': 'commonjs bufferutil',
