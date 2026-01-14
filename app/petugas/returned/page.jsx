@@ -1,67 +1,26 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/button';
 import { Clock, Package, User, Calendar, AlertCircle, CheckCircle, DollarSign } from 'lucide-react';
+import { useReturnsApproval } from './hooks/useReturnsApproval';
 
 export default function PengembalianPage() {
   const router = useRouter();
-  const [returnsList, setReturnsList] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedReturn, setSelectedReturn] = useState(null);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [confirmPayment, setConfirmPayment] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    // Mock data - dalam real app, ini dari API
-    const mockReturns = [
-      {
-        id: 'ret-001',
-        loan_id: 'loan-001',
-        peminjam: {
-          name: 'John Doe',
-          email: 'john@example.com',
-          kelas: 'X-1 A'
-        },
-        equipment: {
-          name: 'Laptop Dell Inspiron',
-          jumlah: 1
-        },
-        tanggal_kembali: '2024-01-15T10:00:00Z',
-        kondisi_alat: 'BAIK',
-        catatan: 'Barang dalam kondisi baik',
-        denda_telat: 0,
-        denda_kerusakan: 0,
-        total_denda: 0,
-        status: 'MENUNGGU_PEMBAYARAN'
-      },
-      {
-        id: 'ret-002',
-        loan_id: 'loan-002',
-        peminjam: {
-          name: 'Jane Smith',
-          email: 'jane@example.com',
-          kelas: 'X-2 B'
-        },
-        equipment: {
-          name: 'Proyektor Epson',
-          jumlah: 1
-        },
-        tanggal_kembali: '2024-01-16T14:30:00Z',
-        kondisi_alat: 'RUSAK_RINGAN',
-        catatan: 'Ada goresan kecil di bagian casing',
-        denda_telat: 50000,
-        denda_kerusakan: 150000,
-        total_denda: 200000,
-        status: 'MENUNGGU_PEMBAYARAN'
-      }
-    ];
-    
-    setReturnsList(mockReturns);
-    setLoading(false);
-  }, []);
+  const {
+    loading,
+    submitting,
+    activeTab,
+    setActiveTab,
+    returnsList,
+    selectedReturn,
+    showConfirmModal,
+    confirmPayment,
+    setConfirmPayment,
+    openConfirm,
+    closeModal,
+    confirmReturn,
+  } = useReturnsApproval();
 
   const getKondisiLabel = (kondisi) => {
     const labels = {
@@ -85,51 +44,13 @@ export default function PengembalianPage() {
     return colors[kondisi] || 'bg-gray-50 text-gray-700 border-gray-200';
   };
 
-  const handleConfirmReturn = (returnItem) => {
-    setSelectedReturn(returnItem);
-    setConfirmPayment(false);
-    setShowConfirmModal(true);
-  };
-
-  const handleSubmitConfirm = async () => {
-    if (selectedReturn.total_denda > 0 && !confirmPayment) {
-      alert('Harap centang konfirmasi pembayaran jika ada denda!');
-      return;
-    }
-
-    setSubmitting(true);
-    
-    // Simulasi API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Update status loan menjadi DIKEMBALIKAN di localStorage
-    const allPeminjaman = JSON.parse(localStorage.getItem('peminjaman') || '[]');
-    const updated = allPeminjaman.map(p => 
-      p.id === selectedReturn.loan_id 
-        ? { 
-            ...p, 
-            status: 'DIKEMBALIKAN',
-            confirmed_at: new Date().toISOString()
-          }
-        : p
-    );
-    localStorage.setItem('peminjaman', JSON.stringify(updated));
-    
-    setReturnsList(returnsList.filter(r => r.id !== selectedReturn.id));
-    setShowConfirmModal(false);
-    setSelectedReturn(null);
-    setConfirmPayment(false);
-    setSubmitting(false);
-    alert('Pengembalian berhasil dikonfirmasi!');
-  };
-
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('id-ID', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   };
 
@@ -157,10 +78,32 @@ export default function PengembalianPage() {
           </p>
         </header>
 
+        {/* Tabs */}
+        <div className="flex flex-wrap gap-2">
+          {[
+            { key: 'MENUNGGU_PEMBAYARAN', label: 'Menunggu Konfirmasi' },
+            { key: 'DIKEMBALIKAN', label: 'Sudah Dikonfirmasi' },
+          ].map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setActiveTab(t.key)}
+              className={`px-4 py-2 rounded-full text-sm font-semibold border transition ${
+                activeTab === t.key
+                  ? 'bg-[#161b33] text-white border-[#161b33]'
+                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
         {/* Info jumlah */}
         {returnsList.length > 0 && (
           <div className="text-sm text-gray-500">
-            Menampilkan <span className="font-semibold text-gray-700">{returnsList.length}</span> pengembalian menunggu konfirmasi
+            Menampilkan <span className="font-semibold text-gray-700">{returnsList.length}</span>{' '}
+            {activeTab === 'MENUNGGU_PEMBAYARAN' ? 'pengembalian menunggu konfirmasi' : 'pengembalian sudah dikonfirmasi'}
           </div>
         )}
 
@@ -283,9 +226,10 @@ export default function PengembalianPage() {
                     bgColor="#161b33"
                     hoverColor="#111628"
                     fullWidth
-                    onClick={() => handleConfirmReturn(returnItem)}
+                    onClick={() => openConfirm(returnItem)}
+                    disabled={activeTab !== 'MENUNGGU_PEMBAYARAN'}
                   >
-                    Konfirmasi Pengembalian
+                    {activeTab === 'MENUNGGU_PEMBAYARAN' ? 'Konfirmasi Pengembalian' : 'Sudah Dikonfirmasi'}
                   </Button>
                 </div>
               </div>
@@ -389,6 +333,22 @@ export default function PengembalianPage() {
                     </div>
                   </div>
                 )}
+
+                {/* Foto bukti */}
+                {selectedReturn.foto_bukti && (
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-[0.1em] font-semibold mb-2">
+                      Foto Bukti
+                    </p>
+                    <div className="rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
+                      <img
+                        src={selectedReturn.foto_bukti}
+                        alt="Foto bukti"
+                        className="w-full max-h-80 object-contain"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Checkbox Konfirmasi Pembayaran */}
@@ -426,11 +386,7 @@ export default function PengembalianPage() {
             <div className="p-6 border-t border-gray-200 flex items-center justify-end gap-3">
               <Button
                 variant="outline"
-                onClick={() => {
-                  setShowConfirmModal(false);
-                  setSelectedReturn(null);
-                  setConfirmPayment(false);
-                }}
+                onClick={closeModal}
                 disabled={submitting}
               >
                 Batal
@@ -439,7 +395,7 @@ export default function PengembalianPage() {
                 variant="primary"
                 bgColor="#161b33"
                 hoverColor="#111628"
-                onClick={handleSubmitConfirm}
+                onClick={confirmReturn}
                 loading={submitting}
                 disabled={selectedReturn.total_denda > 0 && !confirmPayment}
               >

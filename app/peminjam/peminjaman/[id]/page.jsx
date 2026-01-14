@@ -1,78 +1,69 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Button from '@/components/button';
-import Input from '@/components/forminput';
 import { Calendar, Package, FileText, CheckCircle, Clock, XCircle, AlertCircle, Upload, RotateCcw } from 'lucide-react';
+import { useLoanDetail } from '../hooks/useLoanDetail';
+import { returnsAPI } from '@/lib/api/returns';
+import { useToast } from '@/components/ToastProvider';
 
 export default function PeminjamanDetailPage() {
   const params = useParams();
   const router = useRouter();
   const peminjamanId = params.id;
   
-  const [peminjaman, setPeminjaman] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const toast = useToast();
+  const { loan: peminjaman, loading, refetch } = useLoanDetail(peminjamanId);
   const [showReturnForm, setShowReturnForm] = useState(false);
   const [returnForm, setReturnForm] = useState({
     kondisi_alat: 'BAIK',
     catatan: '',
-    foto_bukti: null
+    foto_bukti: null,
   });
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    // Ambil data dari localStorage (dalam real app, ini dari API)
-    const allPeminjaman = JSON.parse(localStorage.getItem('peminjaman') || '[]');
-    const found = allPeminjaman.find(p => p.id === peminjamanId);
-    
-    if (found) {
-      setPeminjaman(found);
-    }
-    setLoading(false);
-  }, [peminjamanId]);
-
   const getStatusConfig = (status) => {
     const configs = {
-      MENUNGGU_APPROVAL: {
+      PENDING: {
         label: 'Menunggu Approval',
         color: 'bg-amber-50 text-amber-700 border-amber-200',
         icon: <Clock size={16} />,
-        description: 'Pengajuan peminjaman sedang menunggu persetujuan dari petugas'
+        description: 'Pengajuan peminjaman sedang menunggu persetujuan dari petugas',
       },
-      DISETUJUI: {
-        label: 'Disetujui',
+      APPROVED: {
+        label: 'Disetujui (Ambil barang)',
         color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
         icon: <CheckCircle size={16} />,
-        description: 'Pengajuan peminjaman telah disetujui. Silakan ambil barang sesuai jadwal.'
+        description: 'Pengajuan peminjaman telah disetujui. Silakan ambil barang ke petugas.',
       },
-      DITOLAK: {
+      REJECTED: {
         label: 'Ditolak',
         color: 'bg-red-50 text-red-700 border-red-200',
         icon: <XCircle size={16} />,
-        description: 'Pengajuan peminjaman ditolak. Silakan hubungi petugas untuk informasi lebih lanjut.'
+        description: 'Pengajuan peminjaman ditolak.',
       },
-      DIPINJAM: {
+      BORROWED: {
         label: 'Sedang Dipinjam',
         color: 'bg-blue-50 text-blue-700 border-blue-200',
         icon: <Package size={16} />,
-        description: 'Barang sedang dalam masa peminjaman'
+        description: 'Barang sedang dalam masa peminjaman.',
       },
-      DIKEMBALIKAN: {
-        label: 'Dikembalikan',
-        color: 'bg-gray-50 text-gray-700 border-gray-200',
-        icon: <CheckCircle size={16} />,
-        description: 'Barang telah dikembalikan'
-      },
-      MENUNGGU_PEMBAYARAN: {
-        label: 'Menunggu Konfirmasi',
+      RETURNED: {
+        label: 'Menunggu Konfirmasi Pengembalian',
         color: 'bg-amber-50 text-amber-700 border-amber-200',
         icon: <Clock size={16} />,
-        description: 'Barang sudah dikembalikan, menunggu konfirmasi petugas'
-      }
+        description: 'Barang sudah kamu kembalikan. Menunggu petugas memverifikasi.',
+      },
+      OVERDUE: {
+        label: 'Terlambat',
+        color: 'bg-red-50 text-red-700 border-red-200',
+        icon: <AlertCircle size={16} />,
+        description: 'Peminjaman melewati batas waktu pengembalian.',
+      },
     };
     
-    return configs[status] || configs.MENUNGGU_APPROVAL;
+    return configs[status] || configs.PENDING;
   };
 
   if (loading) {
@@ -102,7 +93,7 @@ export default function PeminjamanDetailPage() {
   // Hitung denda (mock calculation)
   const calculateDenda = () => {
     const today = new Date();
-    const deadline = new Date(peminjaman.estimasiKembali);
+    const deadline = new Date(peminjaman.tanggal_deadline);
     const isLate = today > deadline;
     
     // Mock harga alat (dalam real app, ambil dari equipment)
@@ -124,24 +115,42 @@ export default function PeminjamanDetailPage() {
 
   const handleReturnSubmit = async (e) => {
     e.preventDefault();
-    setSubmitting(true);
-    
-    // Mock API call
-    setTimeout(() => {
-      // Update status peminjaman
-      const allPeminjaman = JSON.parse(localStorage.getItem('peminjaman') || '[]');
-      const updated = allPeminjaman.map(p => 
-        p.id === peminjamanId 
-          ? { ...p, status: 'MENUNGGU_PEMBAYARAN' }
-          : p
-      );
-      localStorage.setItem('peminjaman', JSON.stringify(updated));
-      
-      setPeminjaman({ ...peminjaman, status: 'MENUNGGU_PEMBAYARAN' });
-      setShowReturnForm(false);
+    if (!peminjaman) return;
+
+    try {
+      setSubmitting(true);
+
+      let fotoUrl = null;
+      if (returnForm.foto_bukti) {
+        const uploadRes = await returnsAPI.uploadProof(returnForm.foto_bukti);
+        if (uploadRes.success) {
+          fotoUrl = uploadRes.data.url;
+        } else {
+          throw new Error(uploadRes.error || 'Gagal upload foto bukti');
+        }
+      }
+
+      const res = await returnsAPI.create({
+        loan_id: peminjaman.id,
+        kondisi_alat: returnForm.kondisi_alat,
+        catatan: returnForm.catatan?.trim() || null,
+        foto_bukti: fotoUrl,
+      });
+
+      if (res.success) {
+        toast.success('Berhasil', 'Pengembalian berhasil diajukan, menunggu konfirmasi petugas');
+        setShowReturnForm(false);
+        setReturnForm({ kondisi_alat: 'BAIK', catatan: '', foto_bukti: null });
+        await refetch();
+      } else {
+        toast.error(res.error || 'Gagal mengajukan pengembalian');
+      }
+    } catch (err) {
+      console.error('Error submitting return:', err);
+      toast.error(err.response?.data?.error || err.message || 'Gagal mengajukan pengembalian');
+    } finally {
       setSubmitting(false);
-      alert('Pengembalian berhasil! Menunggu konfirmasi petugas.');
-    }, 1000);
+    }
   };
 
   const denda = calculateDenda();
@@ -228,7 +237,7 @@ export default function PeminjamanDetailPage() {
                   Tanggal Peminjaman
                 </p>
                 <p className="text-sm font-semibold text-gray-900 mt-1">
-                  {new Date(peminjaman.tanggalPinjam).toLocaleDateString('id-ID', {
+                  {new Date(peminjaman.tanggal_pinjam).toLocaleDateString('id-ID', {
                     weekday: 'long',
                     year: 'numeric',
                     month: 'long',
@@ -242,10 +251,10 @@ export default function PeminjamanDetailPage() {
               <Calendar className="text-gray-400 mt-0.5" size={20} />
               <div>
                 <p className="text-xs text-gray-500 uppercase tracking-[0.1em] font-semibold">
-                  Estimasi Pengembalian
+                  Deadline Pengembalian
                 </p>
                 <p className="text-sm font-semibold text-gray-900 mt-1">
-                  {new Date(peminjaman.estimasiKembali).toLocaleDateString('id-ID', {
+                  {new Date(peminjaman.tanggal_deadline).toLocaleDateString('id-ID', {
                     weekday: 'long',
                     year: 'numeric',
                     month: 'long',
@@ -274,15 +283,15 @@ export default function PeminjamanDetailPage() {
                   Alasan Peminjaman
                 </p>
                 <p className="text-sm text-gray-700 mt-1 leading-relaxed">
-                  {peminjaman.alasan}
+                  {peminjaman.keterangan || '-'}
                 </p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Form Pengembalian (jika status DIPINJAM) */}
-        {peminjaman.status === 'DIPINJAM' && (
+        {/* Form Pengembalian (jika status BORROWED) */}
+        {peminjaman.status === 'BORROWED' && (
           <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
             {!showReturnForm ? (
               <div className="space-y-4">
@@ -422,6 +431,7 @@ export default function PeminjamanDetailPage() {
                     variant="outline"
                     onClick={() => setShowReturnForm(false)}
                     className="flex-1"
+                    disabled={submitting}
                   >
                     Batal
                   </Button>
@@ -442,7 +452,7 @@ export default function PeminjamanDetailPage() {
         )}
 
         {/* Status APPROVED - Tombol Ambil Barang */}
-        {(peminjaman.status === 'APPROVED' || peminjaman.status === 'DISETUJUI') && (
+        {peminjaman.status === 'APPROVED' && (
           <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-6">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div className="flex items-start gap-3 flex-1">
@@ -464,39 +474,22 @@ export default function PeminjamanDetailPage() {
                 bgColor="#161b33"
                 hoverColor="#111628"
                 leftIcon={<Package size={18} />}
-                onClick={async () => {
-                  setSubmitting(true);
-                  // Simulasi API call untuk konfirmasi pengambilan
-                  await new Promise(resolve => setTimeout(resolve, 1000));
-                  
-                  // Update status di localStorage
-                  const allPeminjaman = JSON.parse(localStorage.getItem('peminjaman') || '[]');
-                  const updated = allPeminjaman.map(p => 
-                    p.id === peminjamanId 
-                      ? { 
-                          ...p, 
-                          status: 'BORROWED',
-                          tanggal_ambil: new Date().toISOString()
-                        }
-                      : p
-                  );
-                  localStorage.setItem('peminjaman', JSON.stringify(updated));
-                  
-                  setSubmitting(false);
-                  // Reload page untuk update status
-                  window.location.reload();
+                onClick={() => {
+                  // Konfirmasi ambil barang dilakukan oleh PETUGAS via halaman approval.
+                  // Di sisi peminjam, ini hanya informasi bahwa barang siap diambil.
                 }}
                 loading={submitting}
                 className="whitespace-nowrap"
+                disabled
               >
-                Konfirmasi Ambil Barang
+                Siap diambil (konfirmasi oleh petugas)
               </Button>
             </div>
           </div>
         )}
 
-        {/* Status Menunggu Pembayaran */}
-        {peminjaman.status === 'MENUNGGU_PEMBAYARAN' && (
+        {/* Status RETURNED */}
+        {peminjaman.status === 'RETURNED' && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-6">
             <div className="flex items-start gap-3">
               <Clock className="text-amber-600 mt-0.5" size={20} />
@@ -505,10 +498,10 @@ export default function PeminjamanDetailPage() {
                   Menunggu Konfirmasi Petugas
                 </h3>
                 <p className="text-sm text-amber-800">
-                  Barang sudah dikembalikan. Petugas akan memverifikasi dan mengkonfirmasi pengembalian.
+                  Kamu sudah mengajukan pengembalian. Petugas akan memverifikasi kondisi barang.
                   {denda.totalDenda > 0 && (
                     <span className="block mt-2 font-semibold">
-                      Total denda: Rp {denda.totalDenda.toLocaleString('id-ID')}
+                      Estimasi total denda: Rp {denda.totalDenda.toLocaleString('id-ID')}
                     </span>
                   )}
                 </p>

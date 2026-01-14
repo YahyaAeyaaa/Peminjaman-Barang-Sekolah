@@ -139,7 +139,7 @@ export default function EquipmentPage() {
                       Status
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Harga Sewa
+                      Harga Barang
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                       Aksi
@@ -192,7 +192,7 @@ export default function EquipmentPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900 font-medium">
-                          {item.harga_sewa ? `Rp ${parseFloat(item.harga_sewa).toLocaleString('id-ID')}` : '-'}
+                          {item.harga_alat ? `Rp ${parseFloat(item.harga_alat).toLocaleString('id-ID')}` : '-'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -325,21 +325,38 @@ export default function EquipmentPage() {
                   )}
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Status <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#161b33] focus:border-transparent transition-all bg-white"
-                    required
-                  >
-                    <option value="AVAILABLE">Tersedia</option>
-                    <option value="UNAVAILABLE">Tidak Tersedia</option>
-                    <option value="MAINTENANCE">Maintenance</option>
-                  </select>
-                </div>
+                {/* Status hanya muncul saat edit */}
+                {editingEquipment && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Status <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={formData.status || 'AVAILABLE'}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#161b33] focus:border-transparent transition-all bg-white"
+                      required
+                    >
+                      <option value="AVAILABLE">Tersedia</option>
+                      <option value="MAINTENANCE">Maintenance</option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Status "Tidak Tersedia" otomatis jika stok = 0
+                    </p>
+                  </div>
+                )}
+                
+                {/* Info status otomatis saat create */}
+                {!editingEquipment && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Status
+                    </label>
+                    <div className="w-full px-4 py-2.5 border border-gray-200 rounded-xl bg-gray-50 text-gray-500">
+                      {formData.stok > 0 ? 'Tersedia' : 'Tidak Tersedia'} (Otomatis dari stok)
+                    </div>
+                  </div>
+                )}
 
                 <div className="sm:col-span-2">
                   <ImageInput
@@ -354,29 +371,14 @@ export default function EquipmentPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Harga Sewa (Rp)
+                    Harga Barang (Rp)
                   </label>
                   <input
                     type="number"
                     min="0"
                     step="0.01"
-                    value={formData.harga_sewa}
-                    onChange={(e) => setFormData({ ...formData, harga_sewa: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#161b33] focus:border-transparent transition-all"
-                    placeholder="0"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Harga Alat (Rp)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formData.harga_alat}
-                    onChange={(e) => setFormData({ ...formData, harga_alat: e.target.value })}
+                    value={formData.harga_barang}
+                    onChange={(e) => setFormData({ ...formData, harga_barang: e.target.value })}
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#161b33] focus:border-transparent transition-all"
                     placeholder="0"
                   />

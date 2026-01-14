@@ -70,12 +70,12 @@ export default function AdminSidebar() {
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-white border-r border-gray-200 shadow-sm z-40">
       {/* Logo/Brand */}
-      <div className="h-16 flex items-center justify-center border-b border-gray-200 bg-[#105273]">
+      <div className="h-16 flex items-center justify-center border-b border-gray-200">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-gray-200">
             <span className="text-indigo-600 font-bold text-lg">A</span>
           </div>
-          <span className="text-white font-semibold text-lg">Admin Panel</span>
+          <span className="text-[#3a4454] font-semibold text-md">Admin Panel</span>
         </div>
       </div>
 

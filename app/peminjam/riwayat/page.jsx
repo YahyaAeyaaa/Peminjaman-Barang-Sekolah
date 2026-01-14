@@ -1,55 +1,48 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Calendar, Package, CheckCircle, XCircle } from 'lucide-react';
+import { useMyLoans } from '../peminjaman/hooks/useMyLoans';
 
 export default function RiwayatPage() {
   const router = useRouter();
-  const [riwayatList, setRiwayatList] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { allLoans, historyLoans, loading } = useMyLoans();
 
-  useEffect(() => {
-    // Ambil data dari localStorage (dalam real app, ini dari API)
-    const allPeminjaman = JSON.parse(localStorage.getItem('peminjaman') || '[]');
-    
-    // Filter hanya peminjaman yang sudah selesai (dikembalikan atau ditolak)
-    const selesaiPeminjaman = allPeminjaman.filter(p => 
-      p.status === 'DIKEMBALIKAN' || 
-      p.status === 'DITOLAK'
-    );
-    
-    // Sort by tanggal terbaru dulu
-    selesaiPeminjaman.sort((a, b) => {
-      return new Date(b.createdAt || b.tanggalPinjam) - new Date(a.createdAt || a.tanggalPinjam);
+  const riwayatList = useMemo(() => {
+    // History = loan yang sudah selesai (dikembalikan & dikonfirmasi) atau sudah ditolak
+    // Sort terbaru dulu berdasarkan tanggal_kembali (fallback tanggal_pinjam)
+    const list = [...historyLoans];
+    list.sort((a, b) => {
+      const aDate = a.tanggal_kembali ? new Date(a.tanggal_kembali) : new Date(a.tanggal_pinjam);
+      const bDate = b.tanggal_kembali ? new Date(b.tanggal_kembali) : new Date(b.tanggal_pinjam);
+      return bDate - aDate;
     });
-    
-    setRiwayatList(selesaiPeminjaman);
-    setLoading(false);
-  }, []);
+    return list;
+  }, [historyLoans]);
 
   const getStatusConfig = (status) => {
     const configs = {
-      DIKEMBALIKAN: {
-        label: 'Sudah Dikembalikan',
+      RETURNED: {
+        label: 'Selesai (Dikembalikan)',
         color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
         icon: <CheckCircle size={14} />,
       },
-      DITOLAK: {
+      REJECTED: {
         label: 'Ditolak',
         color: 'bg-red-50 text-red-700 border-red-200',
         icon: <XCircle size={14} />,
       },
     };
     
-    return configs[status] || configs.DIKEMBALIKAN;
+    return configs[status] || configs.RETURNED;
   };
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('id-ID', {
       day: 'numeric',
       month: 'short',
-      year: 'numeric'
+      year: 'numeric',
     });
   };
 
@@ -116,7 +109,7 @@ export default function RiwayatPage() {
               return (
                 <div
                   key={peminjaman.id}
-                  onClick={() => router.push(`/peminjam/peminjaman/${peminjaman.id}`)}
+                  onClick={() => router.push(`/peminjam/riwayat/${peminjaman.id}`)}
                   className="group relative bg-white rounded-xl border border-gray-200 overflow-hidden transition-all duration-300 hover:shadow-xl hover:border-gray-300 hover:-translate-y-1 cursor-pointer"
                 >
                   {/* Image Section */}
@@ -170,14 +163,16 @@ export default function RiwayatPage() {
                       <div className="flex items-center gap-2 text-gray-600">
                         <Calendar size={16} className="text-gray-400" />
                         <span>
-                          Tanggal pinjam: <span className="font-semibold text-gray-900">{formatDate(peminjaman.tanggalPinjam)}</span>
+                          Tanggal pinjam:{' '}
+                          <span className="font-semibold text-gray-900">{peminjaman.tanggal_pinjam_label}</span>
                         </span>
                       </div>
-                      {peminjaman.status === 'DIKEMBALIKAN' && peminjaman.estimasiKembali && (
+                      {peminjaman.tanggal_kembali && (
                         <div className="flex items-center gap-2 text-gray-600">
                           <Calendar size={16} className="text-gray-400" />
                           <span>
-                            Dikembalikan: <span className="font-semibold text-gray-900">{formatDate(peminjaman.estimasiKembali)}</span>
+                            Dikembalikan:{' '}
+                            <span className="font-semibold text-gray-900">{formatDate(peminjaman.tanggal_kembali)}</span>
                           </span>
                         </div>
                       )}

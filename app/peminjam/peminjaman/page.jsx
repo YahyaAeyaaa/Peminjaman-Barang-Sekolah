@@ -1,82 +1,48 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Calendar, Package, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { useMyLoans } from './hooks/useMyLoans';
 
 export default function PeminjamanPage() {
   const router = useRouter();
-  const [peminjamanList, setPeminjamanList] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { loans: peminjamanListRaw, loading, activeTab, setActiveTab, counts } = useMyLoans();
 
-  useEffect(() => {
-    // Ambil data dari localStorage (dalam real app, ini dari API)
-    const allPeminjaman = JSON.parse(localStorage.getItem('peminjaman') || '[]');
-    
-    // Filter peminjaman aktif (tidak termasuk yang sudah DIKEMBALIKAN - masuk history)
-    const aktifPeminjaman = allPeminjaman.filter(p => 
-      p.status === 'MENUNGGU_APPROVAL' || 
-      p.status === 'PENDING' ||
-      p.status === 'APPROVED' ||
-      p.status === 'DISETUJUI' || 
-      p.status === 'BORROWED' ||
-      p.status === 'DIPINJAM' ||
-      p.status === 'MENUNGGU_PEMBAYARAN'
-      // DIKEMBALIKAN tidak ditampilkan di sini, masuk ke history
-    );
-    
-    setPeminjamanList(aktifPeminjaman);
-    setLoading(false);
-  }, []);
+  // Exclude yang sudah dikonfirmasi pengembaliannya (masuk riwayat)
+  const peminjamanList = peminjamanListRaw.filter(
+    (l) => !(l.status === 'RETURNED' && l.return?.status === 'DIKEMBALIKAN')
+  );
 
   const getStatusConfig = (status) => {
     const configs = {
-      MENUNGGU_APPROVAL: {
-        label: 'Menunggu Approval',
-        color: 'bg-amber-50 text-amber-700 border-amber-200',
-        icon: <Clock size={14} />,
-      },
       PENDING: {
         label: 'Menunggu Approval',
         color: 'bg-amber-50 text-amber-700 border-amber-200',
         icon: <Clock size={14} />,
       },
       APPROVED: {
-        label: 'Disetujui',
+        label: 'Disetujui (Ambil barang)',
         color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
         icon: <CheckCircle size={14} />,
       },
-      DISETUJUI: {
-        label: 'Disetujui',
-        color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-        icon: <CheckCircle size={14} />,
+      REJECTED: {
+        label: 'Ditolak',
+        color: 'bg-red-50 text-red-700 border-red-200',
+        icon: <XCircle size={14} />,
       },
       BORROWED: {
         label: 'Sedang Dipinjam',
         color: 'bg-blue-50 text-blue-700 border-blue-200',
         icon: <Package size={14} />,
       },
-      DIPINJAM: {
-        label: 'Sedang Dipinjam',
-        color: 'bg-blue-50 text-blue-700 border-blue-200',
-        icon: <Package size={14} />,
-      },
-      MENUNGGU_PEMBAYARAN: {
-        label: 'Menunggu Konfirmasi',
+      RETURNED: {
+        label: 'Menunggu Konfirmasi Pengembalian',
         color: 'bg-amber-50 text-amber-700 border-amber-200',
         icon: <Clock size={14} />,
       },
     };
     
-    return configs[status] || configs.MENUNGGU_APPROVAL;
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('id-ID', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    });
+    return configs[status] || configs.PENDING;
   };
 
   if (loading) {
@@ -102,6 +68,29 @@ export default function PeminjamanPage() {
             Kelola dan pantau status peminjaman barang elektronik yang sedang aktif dan sudah dikembalikan.
           </p>
         </header>
+
+        {/* Tabs */}
+        <div className="flex flex-wrap gap-2">
+          {[
+            { key: 'ALL', label: `Semua (${counts.ALL})` },
+            { key: 'PENDING', label: `Pending (${counts.PENDING})` },
+            { key: 'APPROVED', label: `Approved (${counts.APPROVED})` },
+            { key: 'BORROWED', label: `Dipinjam (${counts.BORROWED})` },
+          ].map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setActiveTab(t.key)}
+              className={`px-4 py-2 rounded-full text-sm font-semibold border transition ${
+                activeTab === t.key
+                  ? 'bg-[#161b33] text-white border-[#161b33]'
+                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
 
         {/* Info jumlah */}
         {peminjamanList.length > 0 && (
@@ -196,13 +185,15 @@ export default function PeminjamanPage() {
                       <div className="flex items-center gap-2 text-gray-600">
                         <Calendar size={16} className="text-gray-400" />
                         <span>
-                          Pinjam: <span className="font-semibold text-gray-900">{formatDate(peminjaman.tanggalPinjam)}</span>
+                          Pinjam:{' '}
+                          <span className="font-semibold text-gray-900">{peminjaman.tanggal_pinjam_label}</span>
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-gray-600">
                         <Calendar size={16} className="text-gray-400" />
                         <span>
-                          Estimasi kembali: <span className="font-semibold text-gray-900">{formatDate(peminjaman.estimasiKembali)}</span>
+                          Deadline:{' '}
+                          <span className="font-semibold text-gray-900">{peminjaman.tanggal_deadline_label}</span>
                         </span>
                       </div>
                     </div>

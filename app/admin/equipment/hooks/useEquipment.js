@@ -9,10 +9,9 @@ const initialFormData = {
   kode_alat: '',
   kategori_id: '',
   stok: 0,
-  status: 'AVAILABLE',
+  status: null, // Status akan di-set otomatis dari stok saat create
   gambar: '',
-  harga_sewa: '',
-  harga_alat: '',
+  harga_barang: '',
   deskripsi: '',
   tags: [],
 };
@@ -126,16 +125,33 @@ export function useEquipment() {
       }
 
       // Prepare data untuk dikirim
+      const stokValue = parseInt(formData.stok) || 0;
+      
+      // Set status otomatis dari stok saat create
+      // Saat edit, gunakan status yang dipilih (AVAILABLE atau MAINTENANCE)
+      let statusValue;
+      if (editingEquipment) {
+        // Edit: gunakan status dari form (AVAILABLE atau MAINTENANCE)
+        statusValue = formData.status || 'AVAILABLE';
+      } else {
+        // Create: otomatis dari stok
+        statusValue = stokValue > 0 ? 'AVAILABLE' : 'UNAVAILABLE';
+      }
+
       const payload = {
         ...formData,
-        stok: parseInt(formData.stok) || 0,
-        harga_sewa: formData.harga_sewa ? parseFloat(formData.harga_sewa) : null,
-        harga_alat: formData.harga_alat ? parseFloat(formData.harga_alat) : null,
+        stok: stokValue,
+        status: statusValue,
+        harga_sewa: null, // Harga sewa dihapus, selalu null
+        harga_alat: formData.harga_barang ? parseFloat(formData.harga_barang) : null,
         kode_alat: formData.kode_alat?.trim() || null,
         gambar: imageUrl?.trim() || null,
         deskripsi: formData.deskripsi?.trim() || null,
         tags: Array.isArray(formData.tags) ? formData.tags : [],
       };
+      
+      // Hapus harga_barang dari payload karena sudah di-map ke harga_alat
+      delete payload.harga_barang;
 
       const response = editingEquipment
         ? await equipmentAPI.update(editingEquipment.id, payload)
@@ -164,15 +180,17 @@ export function useEquipment() {
   // Handle edit
   const handleEdit = (item) => {
     setEditingEquipment(item);
+    // Saat edit, jika status UNAVAILABLE, ubah ke AVAILABLE (karena UNAVAILABLE hanya otomatis dari stok)
+    const editStatus = item.status === 'UNAVAILABLE' ? 'AVAILABLE' : (item.status || 'AVAILABLE');
+    
     setFormData({
       nama: item.nama || '',
       kode_alat: item.kode_alat || '',
       kategori_id: item.kategori_id || '',
       stok: item.stok || 0,
-      status: item.status || 'AVAILABLE',
+      status: editStatus,
       gambar: item.gambar || '',
-      harga_sewa: item.harga_sewa ? item.harga_sewa.toString() : '',
-      harga_alat: item.harga_alat ? item.harga_alat.toString() : '',
+      harga_barang: item.harga_alat ? item.harga_alat.toString() : '',
       deskripsi: item.deskripsi || '',
       tags: Array.isArray(item.tags) ? item.tags : [],
     });
@@ -204,7 +222,10 @@ export function useEquipment() {
   const resetForm = () => {
     setIsFormOpen(false);
     setEditingEquipment(null);
-    setFormData(initialFormData);
+    setFormData({
+      ...initialFormData,
+      status: null, // Reset status ke null untuk create
+    });
     setTagInput('');
     setImageFile(null);
     setImagePreview(null);

@@ -1,133 +1,32 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/button';
 import { Clock, CheckCircle, XCircle, Package, User, Calendar, FileText, AlertCircle } from 'lucide-react';
+import { useApprovalLoans } from './hooks/useApprovalLoans';
 
 export default function ApprovalPage() {
   const router = useRouter();
-  const [pendingLoans, setPendingLoans] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedLoan, setSelectedLoan] = useState(null);
-  const [showApproveModal, setShowApproveModal] = useState(false);
-  const [showRejectModal, setShowRejectModal] = useState(false);
-  const [showConfirmTakeModal, setShowConfirmTakeModal] = useState(false);
-  const [rejectReason, setRejectReason] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    loadPendingLoans();
-  }, []);
-
-  const loadPendingLoans = () => {
-    // Ambil data dari localStorage (dalam real app, ini dari API)
-    const allPeminjaman = JSON.parse(localStorage.getItem('peminjaman') || '[]');
-    
-    // Filter yang status PENDING atau APPROVED (belum diambil)
-    const pending = allPeminjaman.filter(p => 
-      p.status === 'MENUNGGU_APPROVAL' || 
-      p.status === 'PENDING' || 
-      p.status === 'APPROVED' ||
-      p.status === 'DISETUJUI'
-    );
-    
-    setPendingLoans(pending);
-    setLoading(false);
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('id-ID', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    });
-  };
-
-  const handleApprove = async () => {
-    if (!selectedLoan) return;
-    
-    setSubmitting(true);
-    
-    // Simulasi API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Update status di localStorage
-    const allPeminjaman = JSON.parse(localStorage.getItem('peminjaman') || '[]');
-    const updated = allPeminjaman.map(p => 
-      p.id === selectedLoan.id 
-        ? { 
-            ...p, 
-            status: 'APPROVED',
-            approved_at: new Date().toISOString(),
-            approved_by: 'petugas-1' // Mock petugas ID
-          }
-        : p
-    );
-    localStorage.setItem('peminjaman', JSON.stringify(updated));
-    
-    setSubmitting(false);
-    setShowApproveModal(false);
-    setSelectedLoan(null);
-    loadPendingLoans();
-  };
-
-  const handleReject = async () => {
-    if (!selectedLoan || !rejectReason.trim()) return;
-    
-    setSubmitting(true);
-    
-    // Simulasi API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Update status di localStorage
-    const allPeminjaman = JSON.parse(localStorage.getItem('peminjaman') || '[]');
-    const updated = allPeminjaman.map(p => 
-      p.id === selectedLoan.id 
-        ? { 
-            ...p, 
-            status: 'REJECTED',
-            rejected_at: new Date().toISOString(),
-            rejected_by: 'petugas-1',
-            rejection_reason: rejectReason
-          }
-        : p
-    );
-    localStorage.setItem('peminjaman', JSON.stringify(updated));
-    
-    setSubmitting(false);
-    setShowRejectModal(false);
-    setSelectedLoan(null);
-    setRejectReason('');
-    loadPendingLoans();
-  };
-
-  const handleConfirmTake = async () => {
-    if (!selectedLoan) return;
-    
-    setSubmitting(true);
-    
-    // Simulasi API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Update status di localStorage
-    const allPeminjaman = JSON.parse(localStorage.getItem('peminjaman') || '[]');
-    const updated = allPeminjaman.map(p => 
-      p.id === selectedLoan.id 
-        ? { 
-            ...p, 
-            status: 'BORROWED',
-            tanggal_ambil: new Date().toISOString()
-          }
-        : p
-    );
-    localStorage.setItem('peminjaman', JSON.stringify(updated));
-    
-    setSubmitting(false);
-    setShowConfirmTakeModal(false);
-    setSelectedLoan(null);
-    loadPendingLoans();
-  };
+  const {
+    loading,
+    submitting,
+    pendingLoans,
+    activeTab,
+    setActiveTab,
+    selectedLoan,
+    showApproveModal,
+    showRejectModal,
+    showConfirmTakeModal,
+    rejectReason,
+    setRejectReason,
+    openApprove,
+    openReject,
+    openConfirmTake,
+    closeAllModals,
+    handleApprove,
+    handleReject,
+    handleConfirmTake,
+  } = useApprovalLoans();
 
   if (loading) {
     return (
@@ -153,10 +52,32 @@ export default function ApprovalPage() {
           </p>
         </header>
 
+        {/* Tabs */}
+        <div className="flex flex-wrap gap-2">
+          {[
+            { key: 'PENDING', label: 'Menunggu Approval' },
+            { key: 'APPROVED', label: 'Sudah Disetujui (Menunggu Diambil)' },
+          ].map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setActiveTab(t.key)}
+              className={`px-4 py-2 rounded-full text-sm font-semibold border transition ${
+                activeTab === t.key
+                  ? 'bg-[#161b33] text-white border-[#161b33]'
+                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
         {/* Info jumlah */}
         {pendingLoans.length > 0 && (
           <div className="text-sm text-gray-500">
-            Menampilkan <span className="font-semibold text-gray-700">{pendingLoans.length}</span> pengajuan menunggu persetujuan
+            Menampilkan <span className="font-semibold text-gray-700">{pendingLoans.length}</span>{' '}
+            {activeTab === 'PENDING' ? 'pengajuan menunggu persetujuan' : 'pengajuan sudah disetujui'}
           </div>
         )}
 
@@ -169,10 +90,12 @@ export default function ApprovalPage() {
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Tidak ada pengajuan pending
+                  {activeTab === 'PENDING' ? 'Tidak ada pengajuan pending' : 'Tidak ada pengajuan approved'}
                 </h3>
                 <p className="text-sm text-gray-600">
-                  Semua pengajuan peminjaman sudah diproses.
+                  {activeTab === 'PENDING'
+                    ? 'Semua pengajuan peminjaman sudah diproses.'
+                    : 'Belum ada pengajuan yang disetujui dan menunggu diambil.'}
                 </p>
               </div>
             </div>
@@ -208,7 +131,7 @@ export default function ApprovalPage() {
                     
                     {/* Status Badge */}
                     <div className="absolute top-3 right-3">
-                      {(loan.status === 'MENUNGGU_APPROVAL' || loan.status === 'PENDING') ? (
+                      {loan.status === 'PENDING' ? (
                         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold bg-amber-50 text-amber-700 border-amber-200 backdrop-blur-sm bg-white/95">
                           <Clock size={14} />
                           <span>Menunggu Approval</span>
@@ -216,7 +139,7 @@ export default function ApprovalPage() {
                       ) : (
                         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold bg-emerald-50 text-emerald-700 border-emerald-200 backdrop-blur-sm bg-white/95">
                           <CheckCircle size={14} />
-                          <span>Disetujui</span>
+                          <span>Approved</span>
                         </div>
                       )}
                     </div>
@@ -239,7 +162,10 @@ export default function ApprovalPage() {
                       <div className="flex items-center gap-2 text-gray-600">
                         <User size={16} className="text-gray-400" />
                         <span>
-                          Peminjam: <span className="font-semibold text-gray-900">User</span>
+                          Peminjam:{' '}
+                          <span className="font-semibold text-gray-900">
+                            {loan.peminjam?.name || '—'}
+                          </span>
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-gray-600">
@@ -251,26 +177,29 @@ export default function ApprovalPage() {
                       <div className="flex items-center gap-2 text-gray-600">
                         <Calendar size={16} className="text-gray-400" />
                         <span>
-                          Deadline: <span className="font-semibold text-gray-900">{formatDate(loan.estimasiKembali)}</span>
+                          Deadline:{' '}
+                          <span className="font-semibold text-gray-900">
+                            {loan.tanggal_deadline_label}
+                          </span>
                         </span>
                       </div>
                     </div>
 
                     {/* Alasan */}
-                    {loan.alasan && (
+                    {loan.keterangan && (
                       <div className="bg-gray-50 rounded-lg p-3">
                         <p className="text-xs text-gray-500 uppercase tracking-[0.1em] font-semibold mb-1">
                           Alasan
                         </p>
                         <p className="text-sm text-gray-700 line-clamp-2">
-                          {loan.alasan}
+                          {loan.keterangan}
                         </p>
                       </div>
                     )}
 
                     {/* Actions */}
                     <div className="pt-2 border-t border-gray-100 flex items-center gap-2">
-                      {(loan.status === 'MENUNGGU_APPROVAL' || loan.status === 'PENDING') ? (
+                      {loan.status === 'PENDING' ? (
                         <>
                           <Button
                             variant="outline"
@@ -278,8 +207,7 @@ export default function ApprovalPage() {
                             className="flex-1 text-xs"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setSelectedLoan(loan);
-                              setShowRejectModal(true);
+                              openReject(loan);
                             }}
                           >
                             <XCircle size={14} className="mr-1" />
@@ -293,8 +221,7 @@ export default function ApprovalPage() {
                             className="flex-1 text-xs"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setSelectedLoan(loan);
-                              setShowApproveModal(true);
+                              openApprove(loan);
                             }}
                           >
                             <CheckCircle size={14} className="mr-1" />
@@ -311,8 +238,7 @@ export default function ApprovalPage() {
                           className="text-xs"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelectedLoan(loan);
-                            setShowConfirmTakeModal(true);
+                            openConfirmTake(loan);
                           }}
                         >
                           <Package size={14} className="mr-1" />
@@ -352,11 +278,12 @@ export default function ApprovalPage() {
                     <span className="font-semibold text-gray-900">Jumlah:</span> {selectedLoan.jumlah} unit
                   </p>
                   <p className="text-sm">
-                    <span className="font-semibold text-gray-900">Deadline Pengembalian:</span> {formatDate(selectedLoan.estimasiKembali)}
+                    <span className="font-semibold text-gray-900">Deadline Pengembalian:</span>{' '}
+                    {selectedLoan.tanggal_deadline_label}
                   </p>
-                  {selectedLoan.alasan && (
+                  {selectedLoan.keterangan && (
                     <p className="text-sm">
-                      <span className="font-semibold text-gray-900">Alasan:</span> {selectedLoan.alasan}
+                      <span className="font-semibold text-gray-900">Alasan:</span> {selectedLoan.keterangan}
                     </p>
                   )}
                 </div>
@@ -375,8 +302,7 @@ export default function ApprovalPage() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  setShowApproveModal(false);
-                  setSelectedLoan(null);
+                  closeAllModals();
                 }}
                 disabled={submitting}
               >
@@ -444,9 +370,7 @@ export default function ApprovalPage() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  setShowRejectModal(false);
-                  setSelectedLoan(null);
-                  setRejectReason('');
+                  closeAllModals();
                 }}
                 disabled={submitting}
               >
@@ -489,10 +413,11 @@ export default function ApprovalPage() {
                     <span className="font-semibold text-gray-900">Jumlah:</span> {selectedLoan.jumlah} unit
                   </p>
                   <p className="text-sm">
-                    <span className="font-semibold text-gray-900">Peminjam:</span> User
+                    <span className="font-semibold text-gray-900">Peminjam:</span> {selectedLoan.peminjam?.name || '—'}
                   </p>
                   <p className="text-sm">
-                    <span className="font-semibold text-gray-900">Deadline Pengembalian:</span> {formatDate(selectedLoan.estimasiKembali)}
+                    <span className="font-semibold text-gray-900">Deadline Pengembalian:</span>{' '}
+                    {selectedLoan.tanggal_deadline_label}
                   </p>
                 </div>
 
@@ -510,8 +435,7 @@ export default function ApprovalPage() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  setShowConfirmTakeModal(false);
-                  setSelectedLoan(null);
+                  closeAllModals();
                 }}
                 disabled={submitting}
               >
