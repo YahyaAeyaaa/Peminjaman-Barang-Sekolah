@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
+import { logActivity, getIpAddress, getUserAgent } from '@/lib/activityLogger';
 
 // GET /api/users - List semua users (Admin only)
 export async function GET(request) {
@@ -185,6 +186,17 @@ export async function POST(request) {
         no_hp: true,
         alamat: true,
       },
+    });
+
+    // Log activity
+    await logActivity({
+      userId: session.user.id,
+      action: 'CREATE',
+      tableName: 'users',
+      recordId: user.id,
+      newData: user,
+      ipAddress: getIpAddress(request),
+      userAgent: getUserAgent(request),
     });
 
     return NextResponse.json(

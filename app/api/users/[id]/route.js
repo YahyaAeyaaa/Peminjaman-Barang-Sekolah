@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
+import { logActivity, getIpAddress, getUserAgent } from '@/lib/activityLogger';
 
 // GET /api/users/[id] - Get user by ID (Admin only)
 export async function GET(request, { params }) {
@@ -181,6 +182,18 @@ export async function PATCH(request, { params }) {
       updateData.password = await bcrypt.hash(password, 10);
     }
 
+    // Prepare old data for logging (exclude password)
+    const oldData = {
+      id: existingUser.id,
+      email: existingUser.email,
+      first_name: existingUser.first_name,
+      last_name: existingUser.last_name,
+      role: existingUser.role,
+      is_active: existingUser.is_active,
+      no_hp: existingUser.no_hp,
+      alamat: existingUser.alamat,
+    };
+
     // Update user
     const user = await prisma.user.update({
       where: { id },
@@ -197,6 +210,18 @@ export async function PATCH(request, { params }) {
         no_hp: true,
         alamat: true,
       },
+    });
+
+    // Log activity
+    await logActivity({
+      userId: session.user.id,
+      action: 'UPDATE',
+      tableName: 'users',
+      recordId: user.id,
+      oldData,
+      newData: user,
+      ipAddress: getIpAddress(request),
+      userAgent: getUserAgent(request),
     });
 
     return NextResponse.json({
@@ -277,9 +302,30 @@ export async function DELETE(request, { params }) {
       );
     }
 
+    // Prepare old data for logging (exclude password)
+    const oldData = {
+      id: user.id,
+      email: user.email,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      role: user.role,
+      is_active: user.is_active,
+    };
+
     // Delete user
     await prisma.user.delete({
       where: { id },
+    });
+
+    // Log activity
+    await logActivity({
+      userId: session.user.id,
+      action: 'DELETE',
+      tableName: 'users',
+      recordId: id,
+      oldData,
+      ipAddress: getIpAddress(request),
+      userAgent: getUserAgent(request),
     });
 
     return NextResponse.json({

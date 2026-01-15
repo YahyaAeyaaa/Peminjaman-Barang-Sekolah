@@ -118,8 +118,8 @@ export default function PeminjamanDetailPage() {
     if (!peminjaman) return;
 
     try {
-      setSubmitting(true);
-
+    setSubmitting(true);
+    
       let fotoUrl = null;
       if (returnForm.foto_bukti) {
         const uploadRes = await returnsAPI.uploadProof(returnForm.foto_bukti);
@@ -139,7 +139,7 @@ export default function PeminjamanDetailPage() {
 
       if (res.success) {
         toast.success('Berhasil', 'Pengembalian berhasil diajukan, menunggu konfirmasi petugas');
-        setShowReturnForm(false);
+      setShowReturnForm(false);
         setReturnForm({ kondisi_alat: 'BAIK', catatan: '', foto_bukti: null });
         await refetch();
       } else {
