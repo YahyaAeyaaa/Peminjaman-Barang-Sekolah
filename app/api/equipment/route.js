@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
+import { logActivity, getIpAddress, getUserAgent } from '@/lib/activityLogger';
 
 // GET /api/equipment - List semua equipment
 export async function GET(request) {
@@ -200,6 +201,17 @@ export async function POST(request) {
           },
         },
       },
+    });
+
+    // Log activity
+    await logActivity({
+      userId: session.user.id,
+      action: 'CREATE',
+      tableName: 'equipment',
+      recordId: equipment.id,
+      newData: equipment,
+      ipAddress: getIpAddress(request),
+      userAgent: getUserAgent(request),
     });
 
     return NextResponse.json(

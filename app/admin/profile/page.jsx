@@ -1,167 +1,26 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Save, User, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Save, Lock, Eye, EyeOff } from 'lucide-react';
 import Button from '@/components/button';
-import Input from '@/components/forminput';
-import { useToast } from '@/components/ToastProvider';
+import { useProfile } from './hooks/useProfile';
 
 export default function AdminProfilePage() {
-  const toast = useToast();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [user, setUser] = useState(null);
-  const [formData, setFormData] = useState({
-    first_name: '',
-    last_name: '',
-    email: '',
-    no_hp: '',
-    alamat: '',
-  });
-  const [passwordData, setPasswordData] = useState({
-    current_password: '',
-    new_password: '',
-    confirm_password: '',
-  });
-  const [showPasswords, setShowPasswords] = useState({
-    current: false,
-    new: false,
-    confirm: false,
-  });
-  const [formErrors, setFormErrors] = useState({});
-  const [activeTab, setActiveTab] = useState('profile'); // 'profile' or 'password'
-
-  useEffect(() => {
-    fetchUser();
-  }, []);
-
-  const fetchUser = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/auth/session');
-      const data = await response.json();
-
-      if (data?.user) {
-        setUser(data.user);
-        setFormData({
-          first_name: data.user.first_name || '',
-          last_name: data.user.last_name || '',
-          email: data.user.email || '',
-          no_hp: data.user.no_hp || '',
-          alamat: data.user.alamat || '',
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching user:', error);
-      toast.error('Gagal Memuat Data', 'Terjadi kesalahan saat memuat data profil');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleProfileSubmit = async (e) => {
-    e.preventDefault();
-    setFormErrors({});
-
-    // Validasi
-    if (!formData.first_name.trim()) {
-      setFormErrors({ first_name: 'Nama depan wajib diisi' });
-      return;
-    }
-
-    if (!formData.last_name.trim()) {
-      setFormErrors({ last_name: 'Nama belakang wajib diisi' });
-      return;
-    }
-
-    try {
-      setSaving(true);
-      const response = await fetch(`/api/users/${user.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          first_name: formData.first_name.trim(),
-          last_name: formData.last_name.trim(),
-          no_hp: formData.no_hp?.trim() || null,
-          alamat: formData.alamat?.trim() || null,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success('Profile Berhasil Diupdate', 'Data profil telah diperbarui');
-        fetchUser(); // Refresh data
-      } else {
-        toast.error('Gagal Mengupdate', data.error || 'Terjadi kesalahan saat mengupdate profil');
-        setFormErrors({ general: data.error || 'Terjadi kesalahan' });
-      }
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      toast.error('Gagal Mengupdate', error.message || 'Terjadi kesalahan saat mengupdate profil');
-      setFormErrors({ general: error.message || 'Gagal mengupdate profil' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handlePasswordSubmit = async (e) => {
-    e.preventDefault();
-    setFormErrors({});
-
-    // Validasi
-    if (!passwordData.current_password) {
-      setFormErrors({ current_password: 'Password saat ini wajib diisi' });
-      return;
-    }
-
-    if (!passwordData.new_password) {
-      setFormErrors({ new_password: 'Password baru wajib diisi' });
-      return;
-    }
-
-    if (passwordData.new_password.length < 6) {
-      setFormErrors({ new_password: 'Password baru minimal 6 karakter' });
-      return;
-    }
-
-    if (passwordData.new_password !== passwordData.confirm_password) {
-      setFormErrors({ confirm_password: 'Password baru dan konfirmasi tidak cocok' });
-      return;
-    }
-
-    try {
-      setSaving(true);
-      // TODO: Buat API endpoint untuk change password yang validasi current password
-      const response = await fetch(`/api/users/${user.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          password: passwordData.new_password,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success('Password Berhasil Diubah', 'Password telah diperbarui');
-        setPasswordData({
-          current_password: '',
-          new_password: '',
-          confirm_password: '',
-        });
-      } else {
-        toast.error('Gagal Mengubah Password', data.error || 'Terjadi kesalahan');
-        setFormErrors({ general: data.error || 'Terjadi kesalahan' });
-      }
-    } catch (error) {
-      console.error('Error changing password:', error);
-      toast.error('Gagal Mengubah Password', error.message || 'Terjadi kesalahan');
-      setFormErrors({ general: error.message || 'Gagal mengubah password' });
-    } finally {
-      setSaving(false);
-    }
-  };
+  const {
+    loading,
+    saving,
+    user,
+    formData,
+    passwordData,
+    showPasswords,
+    formErrors,
+    activeTab,
+    setFormData,
+    setPasswordData,
+    setShowPasswords,
+    setActiveTab,
+    handleProfileSubmit,
+    handlePasswordSubmit,
+  } = useProfile();
 
   if (loading) {
     return (
@@ -450,6 +309,3 @@ export default function AdminProfilePage() {
     </div>
   );
 }
-
-
-

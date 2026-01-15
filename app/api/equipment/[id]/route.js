@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
+import { logActivity, getIpAddress, getUserAgent } from '@/lib/activityLogger';
 
 // GET /api/equipment/[id] - Get single equipment
 export async function GET(request, { params }) {
@@ -181,6 +182,17 @@ export async function PATCH(request, { params }) {
     if (harga_alat !== undefined) updateData.harga_alat = harga_alat ? parseFloat(harga_alat) : null;
     if (deskripsi !== undefined) updateData.deskripsi = deskripsi?.trim() || null;
 
+    // Prepare old data for logging
+    const oldData = {
+      id: existing.id,
+      nama: existing.nama,
+      kode_alat: existing.kode_alat,
+      kategori_id: existing.kategori_id,
+      stok: existing.stok,
+      status: existing.status,
+      harga_alat: existing.harga_alat,
+    };
+
     // Update equipment
     const equipment = await prisma.equipment.update({
       where: { id },
@@ -193,6 +205,18 @@ export async function PATCH(request, { params }) {
           },
         },
       },
+    });
+
+    // Log activity
+    await logActivity({
+      userId: session.user.id,
+      action: 'UPDATE',
+      tableName: 'equipment',
+      recordId: equipment.id,
+      oldData,
+      newData: equipment,
+      ipAddress: getIpAddress(request),
+      userAgent: getUserAgent(request),
     });
 
     return NextResponse.json({
@@ -276,9 +300,30 @@ export async function DELETE(request, { params }) {
       );
     }
 
+    // Prepare old data for logging
+    const oldData = {
+      id: equipment.id,
+      nama: equipment.nama,
+      kode_alat: equipment.kode_alat,
+      kategori_id: equipment.kategori_id,
+      stok: equipment.stok,
+      status: equipment.status,
+    };
+
     // Delete equipment
     await prisma.equipment.delete({
       where: { id },
+    });
+
+    // Log activity
+    await logActivity({
+      userId: session.user.id,
+      action: 'DELETE',
+      tableName: 'equipment',
+      recordId: id,
+      oldData,
+      ipAddress: getIpAddress(request),
+      userAgent: getUserAgent(request),
     });
 
     return NextResponse.json({

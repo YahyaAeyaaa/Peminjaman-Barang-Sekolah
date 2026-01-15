@@ -129,42 +129,42 @@ export default function ProductPage() {
         {/* Products Grid */}
         {!loading && !error && (
           <>
-            {/* Info jumlah produk */}
-            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between text-xs md:text-sm text-gray-500">
-              <span>
-                Menampilkan{' '}
-                <span className="font-semibold text-gray-700">
+        {/* Info jumlah produk */}
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between text-xs md:text-sm text-gray-500">
+          <span>
+            Menampilkan{' '}
+            <span className="font-semibold text-gray-700">
                   {products.length > 0 ? `${startIndex}-${endIndex}` : '0'}
-                </span>{' '}
-                dari{' '}
-                <span className="font-semibold text-gray-700">
-                  {products.length}
-                </span>{' '}
-                produk
-              </span>
-            </div>
+            </span>{' '}
+            dari{' '}
+            <span className="font-semibold text-gray-700">
+              {products.length}
+            </span>{' '}
+            produk
+          </span>
+        </div>
 
-            {/* Grid produk */}
+        {/* Grid produk */}
             {products.length > 0 ? (
               <>
-                <section className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  {visibleProducts.map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      onOpenDetail={() => handleOpenDetail(product)}
-                    />
-                  ))}
-                </section>
+        <section className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {visibleProducts.map((product) => (
+            <ProductCard
+              key={product.id}
+              product={product}
+              onOpenDetail={() => handleOpenDetail(product)}
+            />
+          ))}
+        </section>
 
                 {totalPages > 1 && (
-                  <div className="pt-2 border-t border-gray-200">
-                    <Pagination
-                      currentPage={currentPage}
-                      totalPages={totalPages}
-                      onPageChange={setCurrentPage}
-                    />
-                  </div>
+        <div className="pt-2 border-t border-gray-200">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+        </div>
                 )}
               </>
             ) : (

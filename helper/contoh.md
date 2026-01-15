@@ -1,0 +1,1 @@
+ini buat, apa ya namanya, itu apa sih namanya, adalah pokoknya yang itu

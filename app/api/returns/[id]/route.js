@@ -2,6 +2,57 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 
+// GET /api/returns/[id] - Get return detail (PETUGAS/ADMIN)
+export async function GET(_request, { params }) {
+  try {
+    const session = await auth();
+
+    if (!session) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (!['PETUGAS', 'ADMIN'].includes(session.user.role)) {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+    }
+
+    const ret = await prisma.return.findUnique({
+      where: { id: params.id },
+      include: {
+        loan: {
+          include: {
+            equipment: {
+              include: {
+                kategori: { select: { id: true, nama: true } },
+              },
+            },
+            user: {
+              select: { id: true, first_name: true, last_name: true, email: true, kelas: true, no_hp: true, alamat: true },
+            },
+          },
+        },
+        returner: {
+          select: { id: true, first_name: true, last_name: true, email: true, kelas: true },
+        },
+        receiver: {
+          select: { id: true, first_name: true, last_name: true, email: true },
+        },
+      },
+    });
+
+    if (!ret) {
+      return NextResponse.json({ success: false, error: 'Data pengembalian tidak ditemukan' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, data: ret });
+  } catch (error) {
+    console.error('Error fetching return detail:', error);
+    return NextResponse.json(
+      { success: false, error: 'Gagal mengambil detail pengembalian', message: error.message },
+      { status: 500 }
+    );
+  }
+}
+
 // PATCH /api/returns/[id] - Confirm return received (PETUGAS/ADMIN)
 export async function PATCH(request, { params }) {
   try {
