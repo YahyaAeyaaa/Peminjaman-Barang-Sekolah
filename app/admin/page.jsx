@@ -15,6 +15,12 @@ import {
   TrendingUp,
   AlertCircle
 } from 'lucide-react';
+import { usersAPI } from '@/lib/api/users';
+import { equipmentAPI } from '@/lib/api/equipment';
+import { categoriesAPI } from '@/lib/api/categories';
+import { loansAPI } from '@/lib/api/loans';
+import { returnsAPI } from '@/lib/api/returns';
+import { activityLogsAPI } from '@/lib/api/activityLogs';
 
 export default function AdminPage() {
   const [stats, setStats] = useState({
@@ -27,16 +33,79 @@ export default function AdminPage() {
   });
 
   useEffect(() => {
-    // TODO: Fetch data dari API nanti
-    // Untuk sekarang, set dummy data
-    setStats({
-      totalUsers: 0,
-      totalEquipment: 0,
-      totalCategories: 0,
-      activeLoans: 0,
-      pendingReturns: 0,
-      totalActivityLogs: 0,
-    });
+    const loadStats = async () => {
+      let usersCount = 0;
+      let equipmentCount = 0;
+      let categoriesCount = 0;
+      let activeLoansCount = 0;
+      let pendingReturnsCount = 0;
+      let activityLogsCount = 0;
+
+      try {
+        const usersRes = await usersAPI.getAll();
+        if (usersRes && usersRes.success) {
+          usersCount = usersRes.data.length;
+        }
+      } catch (err) {
+        console.error('Gagal mengambil data users:', err);
+      }
+
+      try {
+        const equipmentRes = await equipmentAPI.getAll();
+        if (equipmentRes && equipmentRes.success) {
+          equipmentCount = equipmentRes.data.length;
+        }
+      } catch (err) {
+        console.error('Gagal mengambil data equipment:', err);
+      }
+
+      try {
+        const categoriesRes = await categoriesAPI.getAll();
+        if (categoriesRes && categoriesRes.success) {
+          categoriesCount = categoriesRes.data.length;
+        }
+      } catch (err) {
+        console.error('Gagal mengambil data categories:', err);
+      }
+
+      try {
+        const activeLoansRes = await loansAPI.getAll({ status: 'BORROWED' });
+        if (activeLoansRes && activeLoansRes.success) {
+          activeLoansCount = activeLoansRes.data.length;
+        }
+      } catch (err) {
+        console.error('Gagal mengambil data active loans:', err);
+      }
+
+      try {
+        const pendingReturnsRes = await returnsAPI.getAll({ status: 'MENUNGGU_PEMBAYARAN' });
+        if (pendingReturnsRes && pendingReturnsRes.success) {
+          pendingReturnsCount = pendingReturnsRes.data.length;
+        }
+      } catch (err) {
+        console.error('Gagal mengambil data pending returns:', err);
+      }
+
+      try {
+        const activityLogsRes = await activityLogsAPI.getAll();
+        if (activityLogsRes && activityLogsRes.success) {
+          activityLogsCount = activityLogsRes.data.length;
+        }
+      } catch (err) {
+        console.error('Gagal mengambil data activity logs:', err);
+      }
+
+      setStats({
+        totalUsers: usersCount,
+        totalEquipment: equipmentCount,
+        totalCategories: categoriesCount,
+        activeLoans: activeLoansCount,
+        pendingReturns: pendingReturnsCount,
+        totalActivityLogs: activityLogsCount,
+      });
+    };
+
+    loadStats();
   }, []);
 
   const icons = [
