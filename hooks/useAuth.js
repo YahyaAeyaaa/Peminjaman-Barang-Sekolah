@@ -50,6 +50,7 @@ export function useAuth() {
     : '';
 
   const userEmail = user?.email || '';
+  const userAvatar = user?.avatar || '';
 
   return {
     user,
@@ -58,6 +59,7 @@ export function useAuth() {
     userInitials,
     userName,
     userEmail,
+    userAvatar,
   };
 }
 

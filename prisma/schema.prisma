@@ -15,6 +15,7 @@ model User {
   email             String             @unique
   no_hp             String?
   alamat            String?
+  avatar            String?
   is_active         Boolean            @default(true)
   created_at        DateTime           @default(now())
   updated_at        DateTime           @updatedAt

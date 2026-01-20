@@ -10,7 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 export default function PeminjamNavbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { userInitials, userName, userEmail } = useAuth();
+  const { userInitials, userName, userEmail, userAvatar } = useAuth();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   const handleLogout = async () => {
@@ -65,9 +65,17 @@ export default function PeminjamNavbar() {
               onClick={() => setShowProfileMenu(!showProfileMenu)}
               className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#161b33] text-white text-xs font-semibold">
-                {displayInitials}
-              </div>
+              {userAvatar ? (
+                <img
+                  src={userAvatar}
+                  alt={displayName}
+                  className="h-9 w-9 rounded-full object-cover border border-gray-200"
+                />
+              ) : (
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#161b33] text-white text-xs font-semibold">
+                  {displayInitials}
+                </div>
+              )}
               <div className="hidden md:block text-left">
                 <div className="text-sm font-medium text-gray-900">{displayName}</div>
                 <div className="text-xs text-gray-500">{displayEmail}</div>

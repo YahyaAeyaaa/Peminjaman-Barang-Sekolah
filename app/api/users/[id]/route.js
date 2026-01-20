@@ -73,7 +73,7 @@ export async function GET(request, { params }) {
   }
 }
 
-// PATCH /api/users/[id] - Update user (Admin only)
+// PATCH /api/users/[id] - Update user
 export async function PATCH(request, { params }) {
   try {
     const session = await auth();
@@ -86,17 +86,9 @@ export async function PATCH(request, { params }) {
       );
     }
 
-    // Cek role admin
-    if (session.user.role !== 'ADMIN') {
-      return NextResponse.json(
-        { success: false, error: 'Forbidden - Admin only' },
-        { status: 403 }
-      );
-    }
-
     const { id } = params;
     const body = await request.json();
-    const { email, password, first_name, last_name, role, is_active, no_hp, alamat } = body;
+    const { email, password, first_name, last_name, role, is_active, no_hp, alamat, avatar } = body;
 
     // Cek apakah user ada
     const existingUser = await prisma.user.findUnique({
@@ -110,76 +102,100 @@ export async function PATCH(request, { params }) {
       );
     }
 
-    // Validasi email jika diubah
-    if (email && email !== existingUser.email) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        return NextResponse.json(
-          { success: false, error: 'Format email tidak valid' },
-          { status: 400 }
-        );
-      }
+    // Hanya ADMIN atau user itu sendiri yang boleh update
+    const isAdmin = session.user.role === 'ADMIN';
+    const isSelf = session.user.id === id;
 
-      // Cek apakah email sudah digunakan user lain
-      const emailExists = await prisma.user.findUnique({
-        where: { email: email.trim().toLowerCase() },
-      });
-
-      if (emailExists) {
-        return NextResponse.json(
-          { success: false, error: 'Email sudah digunakan' },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Validasi password jika diubah
-    if (password && password.length < 6) {
+    if (!isAdmin && !isSelf) {
       return NextResponse.json(
-        { success: false, error: 'Password minimal 6 karakter' },
-        { status: 400 }
+        { success: false, error: 'Forbidden - Admin or owner only' },
+        { status: 403 }
       );
     }
 
-    // Validasi role jika diubah - admin tidak bisa diubah menjadi admin lain, hanya bisa edit PETUGAS dan PEMINJAM
-    if (role) {
-      if (!['PETUGAS', 'PEMINJAM'].includes(role)) {
-        return NextResponse.json(
-          { success: false, error: 'Hanya bisa mengubah role menjadi PETUGAS atau PEMINJAM' },
-          { status: 400 }
-        );
-      }
-      
-      // Jangan biarkan ubah role user yang sudah ADMIN menjadi role lain
-      if (existingUser.role === 'ADMIN' && role !== 'ADMIN') {
-        return NextResponse.json(
-          { success: false, error: 'Tidak dapat mengubah role Admin' },
-          { status: 400 }
-        );
-      }
-      
-      // Jangan biarkan ubah role menjadi ADMIN
-      if (role === 'ADMIN') {
-        return NextResponse.json(
-          { success: false, error: 'Tidak dapat mengubah role menjadi Admin' },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Prepare update data
+    // Validasi & persiapan data update
     const updateData = {};
-    if (email) updateData.email = email.trim().toLowerCase();
-    if (first_name) updateData.first_name = first_name.trim();
-    if (last_name) updateData.last_name = last_name.trim();
-    if (role) updateData.role = role;
-    if (typeof is_active === 'boolean') updateData.is_active = is_active;
-    if (no_hp !== undefined) updateData.no_hp = no_hp?.trim() || null;
-    if (alamat !== undefined) updateData.alamat = alamat?.trim() || null;
 
-    // Hash password jika diubah
-    if (password) {
-      updateData.password = await bcrypt.hash(password, 10);
+    if (isAdmin) {
+      // ADMIN bisa mengubah field lengkap (email, password, role, status, dll)
+
+      // Validasi email jika diubah
+      if (email && email !== existingUser.email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          return NextResponse.json(
+            { success: false, error: 'Format email tidak valid' },
+            { status: 400 }
+          );
+        }
+
+        // Cek apakah email sudah digunakan user lain
+        const emailExists = await prisma.user.findUnique({
+          where: { email: email.trim().toLowerCase() },
+        });
+
+        if (emailExists) {
+          return NextResponse.json(
+            { success: false, error: 'Email sudah digunakan' },
+            { status: 400 }
+          );
+        }
+      }
+
+      // Validasi password jika diubah
+      if (password && password.length < 6) {
+        return NextResponse.json(
+          { success: false, error: 'Password minimal 6 karakter' },
+          { status: 400 }
+        );
+      }
+
+      // Validasi role jika diubah - admin tidak bisa diubah menjadi admin lain, hanya bisa edit PETUGAS dan PEMINJAM
+      if (role) {
+        if (!['PETUGAS', 'PEMINJAM'].includes(role)) {
+          return NextResponse.json(
+            { success: false, error: 'Hanya bisa mengubah role menjadi PETUGAS atau PEMINJAM' },
+            { status: 400 }
+          );
+        }
+        
+        // Jangan biarkan ubah role user yang sudah ADMIN menjadi role lain
+        if (existingUser.role === 'ADMIN' && role !== 'ADMIN') {
+          return NextResponse.json(
+            { success: false, error: 'Tidak dapat mengubah role Admin' },
+            { status: 400 }
+          );
+        }
+        
+        // Jangan biarkan ubah role menjadi ADMIN
+        if (role === 'ADMIN') {
+          return NextResponse.json(
+            { success: false, error: 'Tidak dapat mengubah role menjadi Admin' },
+            { status: 400 }
+          );
+        }
+      }
+
+      if (email) updateData.email = email.trim().toLowerCase();
+      if (first_name) updateData.first_name = first_name.trim();
+      if (last_name) updateData.last_name = last_name.trim();
+      if (role) updateData.role = role;
+      if (typeof is_active === 'boolean') updateData.is_active = is_active;
+      if (no_hp !== undefined) updateData.no_hp = no_hp?.trim() || null;
+      if (alamat !== undefined) updateData.alamat = alamat?.trim() || null;
+      if (avatar !== undefined) updateData.avatar = avatar || null;
+
+      // Hash password jika diubah
+      if (password) {
+        updateData.password = await bcrypt.hash(password, 10);
+      }
+    } else {
+      // Non-admin (PEMINJAM/PETUGAS) hanya boleh mengubah data profil dasar
+      if (first_name) updateData.first_name = first_name.trim();
+      if (last_name) updateData.last_name = last_name.trim();
+      if (no_hp !== undefined) updateData.no_hp = no_hp?.trim() || null;
+      if (alamat !== undefined) updateData.alamat = alamat?.trim() || null;
+      if (avatar !== undefined) updateData.avatar = avatar || null;
     }
 
     // Prepare old data for logging (exclude password)
@@ -194,6 +210,17 @@ export async function PATCH(request, { params }) {
       alamat: existingUser.alamat,
     };
 
+    // Pastikan ada data yang diubah
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Tidak ada data yang diubah',
+        },
+        { status: 400 }
+      );
+    }
+
     // Update user
     const user = await prisma.user.update({
       where: { id },
@@ -203,6 +230,7 @@ export async function PATCH(request, { params }) {
         email: true,
         first_name: true,
         last_name: true,
+        avatar: true,
         role: true,
         is_active: true,
         created_at: true,

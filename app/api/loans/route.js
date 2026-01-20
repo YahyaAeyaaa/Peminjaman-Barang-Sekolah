@@ -168,6 +168,31 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
 
+    // Jika role PETUGAS/ADMIN, sebelum ambil data lakukan auto-reject
+    // untuk loan yang sudah APPROVED tapi melewati batas_waktu_ambil dan belum diambil.
+    if (['PETUGAS', 'ADMIN'].includes(session.user.role)) {
+      const now = new Date();
+      try {
+        await prisma.loan.updateMany({
+          where: {
+            status: 'APPROVED',
+            batas_waktu_ambil: {
+              lt: now,
+            },
+            tanggal_ambil: null,
+          },
+          data: {
+            status: 'REJECTED',
+            // Catat alasan penolakan otomatis agar jelas di riwayat
+            rejection_reason: 'Pengajuan dibatalkan otomatis karena melewati batas waktu pengambilan (3 hari).',
+          },
+        });
+      } catch (autoErr) {
+        // Jangan gagalkan request utama hanya karena auto-reject gagal
+        console.error('Error auto-reject APPROVED loans by batas_waktu_ambil:', autoErr);
+      }
+    }
+
     // Build where clause
     let whereClause = {};
 
