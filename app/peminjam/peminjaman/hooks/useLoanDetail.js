@@ -30,6 +30,9 @@ function mapLoanToDetail(loan) {
           status: ret.status,
           confirmed_at: ret.confirmed_at,
           total_denda: ret.total_denda,
+          denda_telat: ret.denda_telat,
+          denda_kerusakan: ret.denda_kerusakan,
+          tanggal_kembali: ret.tanggal_kembali,
           foto_bukti: ret.foto_bukti,
           kondisi_alat: ret.kondisi_alat,
           catatan: ret.catatan,
@@ -58,6 +61,7 @@ function mapLoanToDetail(loan) {
       image,
       stock: equipment?.stok ?? 0,
       kode_alat: equipment?.kode_alat || null,
+      harga_alat: equipment?.harga_alat ? Number(equipment.harga_alat) : 0,
     },
     labels: {
       tanggal_pinjam: formatDate(loan.tanggal_pinjam),

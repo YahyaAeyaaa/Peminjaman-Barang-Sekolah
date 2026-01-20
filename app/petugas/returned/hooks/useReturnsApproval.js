@@ -55,6 +55,7 @@ export function useReturnsApproval() {
   const [selectedReturn, setSelectedReturn] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmPayment, setConfirmPayment] = useState(false);
+  const [confirmedReturnData, setConfirmedReturnData] = useState(null); // Data return setelah confirm untuk PDF
 
   const returnsList = useMemo(() => returnsRaw.map(mapReturnToUI), [returnsRaw]);
 
@@ -89,6 +90,7 @@ export function useReturnsApproval() {
     setShowConfirmModal(false);
     setSelectedReturn(null);
     setConfirmPayment(false);
+    setConfirmedReturnData(null);
   };
 
   const confirmReturn = async () => {
@@ -98,8 +100,11 @@ export function useReturnsApproval() {
       setSubmitting(true);
       const res = await returnsAPI.confirm(selectedReturn.id, { confirm_payment: confirmPayment });
       if (res.success) {
+        // Simpan data return yang sudah dikonfirmasi untuk PDF
+        setConfirmedReturnData(res.data);
         toast.success('Berhasil', 'Pengembalian berhasil dikonfirmasi');
-        closeModal();
+        // Jangan tutup modal dulu, biar user bisa download PDF
+        // closeModal();
         await loadReturns(activeTab);
       } else {
         toast.error(res.error || 'Gagal mengkonfirmasi pengembalian');
@@ -125,6 +130,7 @@ export function useReturnsApproval() {
     openConfirm,
     closeModal,
     confirmReturn,
+    confirmedReturnData,
   };
 }
 

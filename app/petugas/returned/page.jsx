@@ -2,10 +2,11 @@
 
 import { useRouter } from 'next/navigation';
 import Button from '@/components/button';
-import { Clock, Package, User, Calendar, AlertCircle, CheckCircle, DollarSign } from 'lucide-react';
+import { Clock, Package, User, Calendar, AlertCircle, CheckCircle, DollarSign, Download } from 'lucide-react';
 import { useReturnsApproval } from './hooks/useReturnsApproval';
 import { getKondisiLabel, getKondisiColor } from '@/helper/kondisiHelpers';
 import { formatDate } from '@/helper/dateHelpers';
+import { generateBuktiPengembalianPDF } from '@/app/petugas/approval/utils/pdfHelpers';
 
 export default function PengembalianPage() {
   const router = useRouter();
@@ -22,6 +23,7 @@ export default function PengembalianPage() {
     openConfirm,
     closeModal,
     confirmReturn,
+    confirmedReturnData,
   } = useReturnsApproval();
 
 
@@ -355,23 +357,50 @@ export default function PengembalianPage() {
 
             {/* Footer */}
             <div className="p-6 border-t border-gray-200 flex items-center justify-end gap-3">
-              <Button
-                variant="outline"
-                onClick={closeModal}
-                disabled={submitting}
-              >
-                Batal
-              </Button>
-              <Button
-                variant="primary"
-                bgColor="#161b33"
-                hoverColor="#111628"
-                onClick={confirmReturn}
-                loading={submitting}
-                disabled={selectedReturn.total_denda > 0 && !confirmPayment}
-              >
-                Konfirmasi Pengembalian
-              </Button>
+              {confirmedReturnData ? (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      generateBuktiPengembalianPDF(confirmedReturnData);
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    <Download size={16} />
+                    Download PDF Bukti Pengembalian
+                  </Button>
+                  <Button
+                    variant="primary"
+                    bgColor="#161b33"
+                    hoverColor="#111628"
+                    onClick={() => {
+                      closeModal();
+                    }}
+                  >
+                    Tutup
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={closeModal}
+                    disabled={submitting}
+                  >
+                    Batal
+                  </Button>
+                  <Button
+                    variant="primary"
+                    bgColor="#161b33"
+                    hoverColor="#111628"
+                    onClick={confirmReturn}
+                    loading={submitting}
+                    disabled={selectedReturn.total_denda > 0 && !confirmPayment}
+                  >
+                    Konfirmasi Pengembalian
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
