@@ -41,5 +41,12 @@ export const quickActions = [
     border: 'border-pink-200',
     href: '/admin/activity-logs',
   },
+  {
+    title: 'Manajemen Artikel',
+    desc: 'Kelola artikel, pengumuman, dan berita untuk pengguna',
+    color: 'from-teal-500/10 via-teal-500/5 to-transparent',
+    border: 'border-teal-200',
+    href: '/admin/articles',
+  },
 ];
 

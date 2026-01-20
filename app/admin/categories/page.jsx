@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, X, Save } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, Eye } from 'lucide-react';
 import Button from '@/components/button';
 import SearchComponent from '@/components/search';
 import { categoriesAPI } from '@/lib/api/categories';
+import { equipmentAPI } from '@/lib/api/equipment';
 import { useToast } from '@/components/ToastProvider';
 
 export default function CategoriesPage() {
@@ -20,6 +21,9 @@ export default function CategoriesPage() {
   });
   const [formErrors, setFormErrors] = useState({});
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [categoryEquipment, setCategoryEquipment] = useState([]);
+  const [loadingEquipment, setLoadingEquipment] = useState(false);
 
   // Fetch categories
   const fetchCategories = async () => {
@@ -113,6 +117,31 @@ export default function CategoriesPage() {
     setFormErrors({});
   };
 
+  // Handle view category details
+  const handleViewCategory = async (category) => {
+    setSelectedCategory(category);
+    setLoadingEquipment(true);
+    try {
+      const response = await equipmentAPI.getAll({ kategori_id: category.id });
+      if (response.success) {
+        setCategoryEquipment(response.data);
+      } else {
+        toast.error('Gagal Memuat Data', response.error || 'Terjadi kesalahan saat memuat data alat');
+      }
+    } catch (error) {
+      console.error('Error fetching equipment:', error);
+      toast.error('Gagal Memuat Data', error.message || 'Terjadi kesalahan saat memuat data alat');
+    } finally {
+      setLoadingEquipment(false);
+    }
+  };
+
+  // Close category detail modal
+  const closeCategoryDetail = () => {
+    setSelectedCategory(null);
+    setCategoryEquipment([]);
+  };
+
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -171,7 +200,8 @@ export default function CategoriesPage() {
             {categories.map((category) => (
               <div
                 key={category.id}
-                className="rounded-2xl bg-white border border-gray-100 p-6 shadow-sm hover:shadow-md transition-all hover:-translate-y-[2px]"
+                onClick={() => handleViewCategory(category)}
+                className="rounded-2xl bg-white border border-gray-100 p-6 shadow-sm hover:shadow-md transition-all hover:-translate-y-[2px] cursor-pointer"
               >
                 <div className="flex items-start justify-between gap-4 mb-4">
                   <div className="flex-1">
@@ -184,14 +214,20 @@ export default function CategoriesPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => handleEdit(category)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(category);
+                      }}
                       className="p-2 text-gray-400 hover:text-[#161b33] hover:bg-gray-50 rounded-lg transition-colors"
                       title="Edit"
                     >
                       <Edit2 size={18} />
                     </button>
                     <button
-                      onClick={() => setDeleteConfirm(category)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteConfirm(category);
+                      }}
                       className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                       title="Hapus"
                     >
@@ -199,9 +235,13 @@ export default function CategoriesPage() {
                     </button>
                   </div>
                 </div>
-                <div className="pt-4 border-t border-gray-100">
+                <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
                   <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
                     {category._count?.equipment || 0} alat
+                  </span>
+                  <span className="text-xs text-gray-500 flex items-center gap-1">
+                    <Eye size={14} />
+                    Lihat detail
                   </span>
                 </div>
               </div>
@@ -324,6 +364,111 @@ export default function CategoriesPage() {
                   Batal
                 </Button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Category Detail Modal */}
+      {selectedCategory && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Detail Kategori: {selectedCategory.nama}
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  {selectedCategory.deskripsi || 'Tidak ada deskripsi'}
+                </p>
+              </div>
+              <button
+                onClick={closeCategoryDetail}
+                className="text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg p-1 transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              {loadingEquipment ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-500">Memuat data alat...</p>
+                </div>
+              ) : categoryEquipment.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-500">Belum ada alat pada kategori ini</p>
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {categoryEquipment.map((equipment) => (
+                    <div
+                      key={equipment.id}
+                      className="rounded-xl bg-gray-50 border border-gray-200 p-4 hover:shadow-md transition-all"
+                    >
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-900 mb-1">
+                            {equipment.nama}
+                          </h3>
+                          {equipment.kode_alat && (
+                            <p className="text-xs text-gray-500 mb-2">
+                              Kode: {equipment.kode_alat}
+                            </p>
+                          )}
+                        </div>
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
+                            equipment.status === 'AVAILABLE'
+                              ? 'bg-green-50 text-green-700 border border-green-200'
+                              : equipment.status === 'UNAVAILABLE'
+                              ? 'bg-red-50 text-red-700 border border-red-200'
+                              : 'bg-yellow-50 text-yellow-700 border border-yellow-200'
+                          }`}
+                        >
+                          {equipment.status === 'AVAILABLE'
+                            ? 'Tersedia'
+                            : equipment.status === 'UNAVAILABLE'
+                            ? 'Tidak Tersedia'
+                            : 'Maintenance'}
+                        </span>
+                      </div>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-600">Stok:</span>
+                          <span className="font-medium text-gray-900">{equipment.stok}</span>
+                        </div>
+                        {equipment.harga_sewa && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-600">Harga Sewa:</span>
+                            <span className="font-medium text-gray-900">
+                              Rp {parseFloat(equipment.harga_sewa).toLocaleString('id-ID')}
+                            </span>
+                          </div>
+                        )}
+                        {equipment.deskripsi && (
+                          <p className="text-xs text-gray-600 line-clamp-2 mt-2">
+                            {equipment.deskripsi}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-gray-100 flex items-center justify-between">
+              <p className="text-sm text-gray-600">
+                Total: <span className="font-medium text-gray-900">{categoryEquipment.length} alat</span>
+              </p>
+              <Button
+                onClick={closeCategoryDetail}
+                variant="outline"
+                className="border-gray-200 hover:bg-gray-50"
+              >
+                Tutup
+              </Button>
             </div>
           </div>
         </div>

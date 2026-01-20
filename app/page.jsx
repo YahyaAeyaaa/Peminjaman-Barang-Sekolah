@@ -178,12 +178,11 @@ export default function RegisterPage() {
                         setCodeError('');
                       }}
                       leftIcon={<KeyRound size={18} />}
-                      className="font-mono"
+                      className="font-mono flex-1"
                       radius="full"
                       required
                       error={codeError}
                       focusColor="#316e94"
-                      className="flex-1"
                     />
                     <Button
                       type="submit"
