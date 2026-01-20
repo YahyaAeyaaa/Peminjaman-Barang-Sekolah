@@ -1,5 +1,6 @@
 import { PeminjamHero, QuickActionCard } from './components/example';
 import { quickActions } from './data/navCard';
+import { NewsSection } from '../../components/news-section';
 
 export default function PeminjamPage() {
 
@@ -21,6 +22,9 @@ export default function PeminjamPage() {
                         />
                     ))}
                 </section>
+
+                {/* News Section */}
+                <NewsSection />
 
                 {/* Tips Section */}
                 <section className="rounded-3xl bg-white p-8 shadow-sm">

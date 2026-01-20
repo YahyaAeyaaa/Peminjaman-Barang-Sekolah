@@ -180,12 +180,26 @@ export default function ApprovalPage() {
                       <div className="flex items-center gap-2 text-gray-600">
                         <Calendar size={16} className="text-gray-400" />
                         <span>
-                          Deadline:{' '}
+                          Deadline Pengembalian:{' '}
                           <span className="font-semibold text-gray-900">
                             {loan.tanggal_deadline_label}
                           </span>
                         </span>
                       </div>
+                      {loan.status === 'APPROVED' && loan.batas_waktu_ambil && (
+                        <div className="flex items-start gap-2 text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-1">
+                          <AlertCircle size={16} className="mt-[2px]" />
+                          <div>
+                            <p className="text-xs font-semibold">
+                              Batas Waktu Pengambilan: {loan.batas_waktu_ambil_label}
+                            </p>
+                            <p className="text-xs">
+                              Jika barang tidak diambil dalam 3 hari setelah disetujui, sistem akan
+                              otomatis menolak pengajuan ini.
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Alasan */}
@@ -232,21 +246,34 @@ export default function ApprovalPage() {
                           </Button>
                         </>
                       ) : (
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          bgColor="#161b33"
-                          hoverColor="#111628"
-                          fullWidth
-                          className="text-xs"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openConfirmTake(loan);
-                          }}
-                        >
-                          <Package size={14} className="mr-1" />
-                          Konfirmasi Barang Diambil
-                        </Button>
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openReject(loan);
+                            }}
+                          >
+                            <XCircle size={14} className="mr-1" />
+                            Batalkan Approval
+                          </Button>
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            bgColor="#161b33"
+                            hoverColor="#111628"
+                            className="flex-1 text-xs"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openConfirmTake(loan);
+                            }}
+                          >
+                            <Package size={14} className="mr-1" />
+                            Konfirmasi Barang Diambil
+                          </Button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -358,10 +385,12 @@ export default function ApprovalPage() {
           <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200">
               <h2 className="text-2xl font-bold text-gray-900">
-                Tolak Peminjaman
+                {selectedLoan.status === 'APPROVED' ? 'Batalkan Approval' : 'Tolak Peminjaman'}
               </h2>
               <p className="text-sm text-gray-600 mt-1">
-                Berikan alasan penolakan untuk pengajuan peminjaman ini
+                {selectedLoan.status === 'APPROVED'
+                  ? 'Berikan alasan pembatalan untuk peminjaman yang sudah disetujui.'
+                  : 'Berikan alasan penolakan untuk pengajuan peminjaman ini.'}
               </p>
             </div>
 

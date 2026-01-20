@@ -181,9 +181,12 @@ export async function PATCH(request, { params }) {
     }
 
     if (action === 'REJECT') {
-      if (loan.status !== 'PENDING') {
+      // REJECT bisa dipakai untuk:
+      // - Menolak pengajuan baru (status PENDING)
+      // - Membatalkan peminjaman yang sudah disetujui tapi batal diambil (status APPROVED)
+      if (!['PENDING', 'APPROVED'].includes(loan.status)) {
         return NextResponse.json(
-          { success: false, error: 'Loan tidak dalam status PENDING' },
+          { success: false, error: 'Loan hanya bisa ditolak dari status PENDING atau APPROVED' },
           { status: 400 }
         );
       }

@@ -28,6 +28,8 @@ function mapLoanToUI(loan) {
     jumlah: loan.jumlah,
     tanggal_deadline: loan.tanggal_deadline,
     tanggal_deadline_label: formatDate(loan.tanggal_deadline),
+    batas_waktu_ambil: loan.batas_waktu_ambil,
+    batas_waktu_ambil_label: loan.batas_waktu_ambil ? formatDate(loan.batas_waktu_ambil) : null,
     keterangan: loan.keterangan,
     approved_at: loan.approved_at,
     tanggal_ambil: loan.tanggal_ambil,
