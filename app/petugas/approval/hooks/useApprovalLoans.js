@@ -61,6 +61,8 @@ export function useApprovalLoans() {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showConfirmTakeModal, setShowConfirmTakeModal] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
+  const [approvedLoanData, setApprovedLoanData] = useState(null); // Data loan setelah approve untuk PDF
+  const [confirmedLoanData, setConfirmedLoanData] = useState(null); // Data loan setelah confirm take untuk PDF
 
   const pendingLoans = useMemo(() => loansRaw.map(mapLoanToUI), [loansRaw]);
 
@@ -117,6 +119,8 @@ export function useApprovalLoans() {
     setShowConfirmTakeModal(false);
     setSelectedLoan(null);
     setRejectReason('');
+    setApprovedLoanData(null);
+    setConfirmedLoanData(null);
   };
 
   const handleApprove = async () => {
@@ -125,8 +129,11 @@ export function useApprovalLoans() {
       setSubmitting(true);
       const res = await loansAPI.approve(selectedLoan.id);
       if (res.success) {
+        // Simpan data loan yang sudah di-approve untuk PDF
+        setApprovedLoanData(res.data);
         toast.success('Disetujui', 'Peminjaman berhasil disetujui');
-        closeAllModals();
+        // Jangan tutup modal dulu, biar user bisa download PDF
+        // closeAllModals();
         // Setelah approve, pindah tab APPROVED supaya card tidak "hilang"
         setActiveTab('APPROVED');
         await loadApprovalLoans('APPROVED');
@@ -169,8 +176,11 @@ export function useApprovalLoans() {
       setSubmitting(true);
       const res = await loansAPI.confirmTake(selectedLoan.id);
       if (res.success) {
+        // Simpan data loan yang sudah dikonfirmasi untuk PDF
+        setConfirmedLoanData(res.data);
         toast.success('Dikonfirmasi', 'Barang berhasil dikonfirmasi sudah diambil');
-        closeAllModals();
+        // Jangan tutup modal dulu, biar user bisa download PDF
+        // closeAllModals();
         // Setelah confirm take, loan keluar dari tab APPROVED karena jadi BORROWED
         await loadApprovalLoans('APPROVED');
       } else {
@@ -205,6 +215,8 @@ export function useApprovalLoans() {
     handleApprove,
     handleReject,
     handleConfirmTake,
+    approvedLoanData,
+    confirmedLoanData,
   };
 }
 

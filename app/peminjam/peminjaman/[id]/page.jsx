@@ -3,10 +3,13 @@
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Button from '@/components/button';
-import { Calendar, Package, FileText, CheckCircle, Clock, XCircle, AlertCircle, Upload, RotateCcw } from 'lucide-react';
+import { Calendar, Package, FileText, CheckCircle, Clock, XCircle, AlertCircle, Upload, RotateCcw, Download } from 'lucide-react';
 import { useLoanDetail } from '../hooks/useLoanDetail';
 import { returnsAPI } from '@/lib/api/returns';
 import { useToast } from '@/components/ToastProvider';
+import { generateBuktiPengajuanPDF, generateBuktiPengajuanPengembalianPDF } from '@/app/petugas/approval/utils/pdfHelpers';
+import { loansAPI } from '@/lib/api/loans';
+import { damagePercentage } from '@/helper/damagePercentage';
 
 export default function PeminjamanDetailPage() {
   const params = useParams();
@@ -22,6 +25,8 @@ export default function PeminjamanDetailPage() {
     foto_bukti: null,
   });
   const [submitting, setSubmitting] = useState(false);
+  const [downloadingPDF, setDownloadingPDF] = useState(false);
+  const [submittedReturnData, setSubmittedReturnData] = useState(null); // Data return setelah submit untuk PDF
 
   const getStatusConfig = (status) => {
     const configs = {
@@ -90,24 +95,21 @@ export default function PeminjamanDetailPage() {
   const product = peminjaman.product;
   const statusConfig = getStatusConfig(peminjaman.status);
 
-  // Hitung denda (mock calculation)
+  // Hitung denda (sama dengan backend)
   const calculateDenda = () => {
     const today = new Date();
     const deadline = new Date(peminjaman.tanggal_deadline);
-    const isLate = today > deadline;
     
-    // Mock harga alat (dalam real app, ambil dari equipment)
-    const hargaAlat = 1000000;
-    const persentaseKerusakan = {
-      'BAIK': 0,
-      'RUSAK_RINGAN': 0.15,
-      'RUSAK_SEDANG': 0.40,
-      'RUSAK_BERAT': 0.70,
-      'HILANG': 1.0
-    };
+    // Hitung denda telat: 50rb per hari telat (sama dengan backend)
+    const msPerDay = 24 * 60 * 60 * 1000;
+    const lateDays = Math.max(0, Math.ceil((today.getTime() - deadline.getTime()) / msPerDay));
+    const dendaTelat = lateDays * 50000;
     
-    const dendaTelat = isLate ? 50000 : 0; // Mock: Rp 50rb per hari telat
-    const dendaKerusakan = hargaAlat * (persentaseKerusakan[returnForm.kondisi_alat] || 0);
+    // Hitung denda kerusakan berdasarkan harga_alat * persentase (sama dengan backend)
+    const hargaAlat = product.harga_alat || 0;
+    const persentase = damagePercentage[returnForm.kondisi_alat] ?? 0;
+    const dendaKerusakan = hargaAlat * persentase;
+    
     const totalDenda = dendaTelat + dendaKerusakan;
     
     return { dendaTelat, dendaKerusakan, totalDenda };
@@ -138,9 +140,12 @@ export default function PeminjamanDetailPage() {
       });
 
       if (res.success) {
+        // Simpan data return yang berhasil dibuat untuk PDF
+        setSubmittedReturnData(res.data);
         toast.success('Berhasil', 'Pengembalian berhasil diajukan, menunggu konfirmasi petugas');
-      setShowReturnForm(false);
-        setReturnForm({ kondisi_alat: 'BAIK', catatan: '', foto_bukti: null });
+        // Jangan tutup form dulu, biar user bisa download PDF
+        // setShowReturnForm(false);
+        // setReturnForm({ kondisi_alat: 'BAIK', catatan: '', foto_bukti: null });
         await refetch();
       } else {
         toast.error(res.error || 'Gagal mengajukan pengembalian');
@@ -426,25 +431,62 @@ export default function PeminjamanDetailPage() {
 
                 {/* Submit Button */}
                 <div className="flex items-center gap-3 pt-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setShowReturnForm(false)}
-                    className="flex-1"
-                    disabled={submitting}
-                  >
-                    Batal
-                  </Button>
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    bgColor="#161b33"
-                    hoverColor="#111628"
-                    loading={submitting}
-                    className="flex-1"
-                  >
-                    Submit Pengembalian
-                  </Button>
+                  {submittedReturnData ? (
+                    <>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          // Fetch loan detail lengkap untuk PDF
+                          loansAPI.getById(peminjamanId).then((res) => {
+                            if (res.success) {
+                              generateBuktiPengajuanPengembalianPDF(submittedReturnData, res.data);
+                            }
+                          });
+                        }}
+                        className="flex items-center gap-2 flex-1"
+                      >
+                        <Download size={16} />
+                        Download PDF Bukti Pengembalian
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="primary"
+                        bgColor="#161b33"
+                        hoverColor="#111628"
+                        onClick={() => {
+                          setShowReturnForm(false);
+                          setReturnForm({ kondisi_alat: 'BAIK', catatan: '', foto_bukti: null });
+                          setSubmittedReturnData(null);
+                        }}
+                        className="flex-1"
+                      >
+                        Tutup
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setShowReturnForm(false)}
+                        className="flex-1"
+                        disabled={submitting}
+                      >
+                        Batal
+                      </Button>
+                      <Button
+                        type="submit"
+                        variant="primary"
+                        bgColor="#161b33"
+                        hoverColor="#111628"
+                        loading={submitting}
+                        className="flex-1"
+                      >
+                        Submit Pengembalian
+                      </Button>
+                    </>
+                  )}
                 </div>
               </form>
             )}
@@ -469,21 +511,49 @@ export default function PeminjamanDetailPage() {
                   </p>
                 </div>
               </div>
-              <Button
-                variant="primary"
-                bgColor="#161b33"
-                hoverColor="#111628"
-                leftIcon={<Package size={18} />}
-                onClick={() => {
-                  // Konfirmasi ambil barang dilakukan oleh PETUGAS via halaman approval.
-                  // Di sisi peminjam, ini hanya informasi bahwa barang siap diambil.
-                }}
-                loading={submitting}
-                className="whitespace-nowrap"
-                disabled
-              >
-                Siap diambil (konfirmasi oleh petugas)
-              </Button>
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="primary"
+                  bgColor="#10b981"
+                  hoverColor="#059669"
+                  leftIcon={<Download size={18} />}
+                  onClick={async () => {
+                    if (downloadingPDF) return;
+                    try {
+                      setDownloadingPDF(true);
+                      // Fetch detail loan lengkap untuk PDF
+                      const res = await loansAPI.getById(peminjamanId);
+                      if (res.success && res.data) {
+                        generateBuktiPengajuanPDF(res.data);
+                        toast.success('PDF Berhasil Diunduh', 'Bukti pengajuan peminjaman telah diunduh');
+                      } else {
+                        toast.error('Gagal Mengunduh PDF', res.error || 'Terjadi kesalahan');
+                      }
+                    } catch (error) {
+                      console.error('Error downloading PDF:', error);
+                      toast.error('Gagal Mengunduh PDF', 'Terjadi kesalahan saat mengunduh PDF');
+                    } finally {
+                      setDownloadingPDF(false);
+                    }
+                  }}
+                  loading={downloadingPDF}
+                  className="whitespace-nowrap"
+                >
+                  Download PDF Bukti
+                </Button>
+                <Button
+                  variant="outline"
+                  leftIcon={<Package size={18} />}
+                  onClick={() => {
+                    // Konfirmasi ambil barang dilakukan oleh PETUGAS via halaman approval.
+                    // Di sisi peminjam, ini hanya informasi bahwa barang siap diambil.
+                  }}
+                  className="whitespace-nowrap"
+                  disabled
+                >
+                  Siap diambil (konfirmasi oleh petugas)
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -491,21 +561,66 @@ export default function PeminjamanDetailPage() {
         {/* Status RETURNED */}
         {peminjaman.status === 'RETURNED' && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-6">
-            <div className="flex items-start gap-3">
-              <Clock className="text-amber-600 mt-0.5" size={20} />
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-amber-900 mb-1">
-                  Menunggu Konfirmasi Petugas
-                </h3>
-                <p className="text-sm text-amber-800">
-                  Kamu sudah mengajukan pengembalian. Petugas akan memverifikasi kondisi barang.
-                  {denda.totalDenda > 0 && (
-                    <span className="block mt-2 font-semibold">
-                      Estimasi total denda: Rp {denda.totalDenda.toLocaleString('id-ID')}
-                    </span>
-                  )}
-                </p>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-start gap-3 flex-1">
+                <Clock className="text-amber-600 mt-0.5" size={20} />
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-amber-900 mb-1">
+                    Menunggu Konfirmasi Petugas
+                  </h3>
+                  <p className="text-sm text-amber-800">
+                    Kamu sudah mengajukan pengembalian. Petugas akan memverifikasi kondisi barang.
+                    {peminjaman.return?.total_denda > 0 && (
+                      <span className="block mt-2 font-semibold">
+                        Estimasi total denda: Rp {Number(peminjaman.return.total_denda).toLocaleString('id-ID')}
+                      </span>
+                    )}
+                  </p>
+                </div>
               </div>
+              {peminjaman.return && (
+                <Button
+                  variant="primary"
+                  bgColor="#10b981"
+                  hoverColor="#059669"
+                  leftIcon={<Download size={18} />}
+                  onClick={async () => {
+                    if (downloadingPDF) return;
+                    try {
+                      setDownloadingPDF(true);
+                      // Fetch loan detail lengkap untuk PDF
+                      const res = await loansAPI.getById(peminjamanId);
+                      if (res.success && res.data) {
+                        // Gunakan data return yang sudah ada dari loan detail
+                        const returnData = {
+                          id: peminjaman.return.id,
+                          kondisi_alat: peminjaman.return.kondisi_alat,
+                          catatan: peminjaman.return.catatan,
+                          tanggal_kembali: peminjaman.return.tanggal_kembali || peminjaman.tanggal_kembali,
+                          denda_telat: peminjaman.return.denda_telat || 0,
+                          denda_kerusakan: peminjaman.return.denda_kerusakan || 0,
+                          total_denda: peminjaman.return.total_denda || 0,
+                          status: peminjaman.return.status,
+                          loan: res.data,
+                        };
+                        generateBuktiPengajuanPengembalianPDF(returnData, res.data);
+                        toast.success('PDF Berhasil Diunduh', 'Bukti pengajuan pengembalian telah diunduh');
+                      } else {
+                        toast.error('Gagal Mengunduh PDF', 'Terjadi kesalahan saat memuat data');
+                      }
+                    } catch (error) {
+                      console.error('Error downloading PDF:', error);
+                      toast.error('Gagal Mengunduh PDF', 'Terjadi kesalahan saat mengunduh PDF');
+                    } finally {
+                      setDownloadingPDF(false);
+                    }
+                  }}
+                  loading={downloadingPDF}
+                  className="whitespace-nowrap"
+                >
+                  Download PDF Bukti Pengembalian
+                </Button>
+              )}
             </div>
           </div>
         )}

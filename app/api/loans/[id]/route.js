@@ -20,6 +20,9 @@ export async function GET(_request, { params }) {
             status: true,
             confirmed_at: true,
             total_denda: true,
+            denda_telat: true,
+            denda_kerusakan: true,
+            tanggal_kembali: true,
             foto_bukti: true,
             kondisi_alat: true,
             catatan: true,
@@ -131,6 +134,10 @@ export async function PATCH(request, { params }) {
           );
         }
 
+        // Set batas_waktu_ambil (default: sekarang + 3 hari)
+        const batasWaktuAmbil = new Date();
+        batasWaktuAmbil.setDate(batasWaktuAmbil.getDate() + 3);
+
         // Approve loan ini
         const updatedLoan = await tx.loan.update({
           where: { id: currentLoan.id },
@@ -140,6 +147,7 @@ export async function PATCH(request, { params }) {
             approved_at: new Date(),
             rejected_by: null,
             rejection_reason: null,
+            batas_waktu_ambil: batasWaktuAmbil,
           },
           include: {
             equipment: { include: { kategori: { select: { id: true, nama: true } } } },

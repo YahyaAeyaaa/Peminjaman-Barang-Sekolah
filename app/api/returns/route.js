@@ -156,8 +156,20 @@ export async function POST(request) {
         include: {
           loan: {
             include: {
-              equipment: true,
+              equipment: {
+                include: {
+                  kategori: {
+                    select: { id: true, nama: true },
+                  },
+                },
+              },
+              user: {
+                select: { id: true, first_name: true, last_name: true, email: true, kelas: true },
+              },
             },
+          },
+          returner: {
+            select: { id: true, first_name: true, last_name: true, email: true, kelas: true },
           },
         },
       });

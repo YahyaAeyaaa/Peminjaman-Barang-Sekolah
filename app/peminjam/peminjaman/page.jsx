@@ -1,12 +1,18 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Calendar, Package, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Calendar, Package, Clock, CheckCircle, XCircle, Download } from 'lucide-react';
 import { useMyLoans } from './hooks/useMyLoans';
+import { generateBuktiPengajuanPDF } from '@/app/petugas/approval/utils/pdfHelpers';
+import { loansAPI } from '@/lib/api/loans';
+import { useToast } from '@/components/ToastProvider';
+import { useState } from 'react';
 
 export default function PeminjamanPage() {
   const router = useRouter();
+  const toast = useToast();
   const { loans: peminjamanListRaw, loading, activeTab, setActiveTab, counts } = useMyLoans();
+  const [downloadingPDF, setDownloadingPDF] = useState(null);
 
   // Exclude yang sudah dikonfirmasi pengembaliannya (masuk riwayat)
   const peminjamanList = peminjamanListRaw.filter(
@@ -199,7 +205,37 @@ export default function PeminjamanPage() {
                     </div>
 
                     {/* Action */}
-                    <div className="pt-2 border-t border-gray-100">
+                    <div className="pt-2 border-t border-gray-100 space-y-2">
+                      {peminjaman.status === 'APPROVED' && (
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (downloadingPDF === peminjaman.id) return;
+                            
+                            try {
+                              setDownloadingPDF(peminjaman.id);
+                              // Fetch detail loan lengkap untuk PDF
+                              const res = await loansAPI.getById(peminjaman.id);
+                              if (res.success && res.data) {
+                                generateBuktiPengajuanPDF(res.data);
+                                toast.success('PDF Berhasil Diunduh', 'Bukti pengajuan peminjaman telah diunduh');
+                              } else {
+                                toast.error('Gagal Mengunduh PDF', res.error || 'Terjadi kesalahan');
+                              }
+                            } catch (error) {
+                              console.error('Error downloading PDF:', error);
+                              toast.error('Gagal Mengunduh PDF', 'Terjadi kesalahan saat mengunduh PDF');
+                            } finally {
+                              setDownloadingPDF(null);
+                            }
+                          }}
+                          disabled={downloadingPDF === peminjaman.id}
+                          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Download size={16} />
+                          {downloadingPDF === peminjaman.id ? 'Mengunduh...' : 'Download PDF Bukti'}
+                        </button>
+                      )}
                       <button className="w-full text-sm font-semibold text-blue-600 hover:text-blue-700 hover:underline text-center">
                         Lihat detail →
                       </button>

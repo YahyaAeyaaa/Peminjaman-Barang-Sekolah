@@ -2,8 +2,9 @@
 
 import { useRouter } from 'next/navigation';
 import Button from '@/components/button';
-import { Clock, CheckCircle, XCircle, Package, User, Calendar, FileText, AlertCircle } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Package, User, Calendar, FileText, AlertCircle, Download } from 'lucide-react';
 import { useApprovalLoans } from './hooks/useApprovalLoans';
+import { generateBuktiPengajuanPDF, generateBuktiPeminjamanPDF } from './utils/pdfHelpers';
 
 export default function ApprovalPage() {
   const router = useRouter();
@@ -26,6 +27,8 @@ export default function ApprovalPage() {
     handleApprove,
     handleReject,
     handleConfirmTake,
+    approvedLoanData,
+    confirmedLoanData,
   } = useApprovalLoans();
 
   if (loading) {
@@ -299,24 +302,51 @@ export default function ApprovalPage() {
 
             {/* Footer */}
             <div className="p-6 border-t border-gray-200 flex items-center justify-end gap-3">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  closeAllModals();
-                }}
-                disabled={submitting}
-              >
-                Batal
-              </Button>
-              <Button
-                variant="primary"
-                bgColor="#161b33"
-                hoverColor="#111628"
-                onClick={handleApprove}
-                loading={submitting}
-              >
-                Setujui Peminjaman
-              </Button>
+              {approvedLoanData ? (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      generateBuktiPengajuanPDF(approvedLoanData);
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    <Download size={16} />
+                    Download PDF Bukti Pengajuan
+                  </Button>
+                  <Button
+                    variant="primary"
+                    bgColor="#161b33"
+                    hoverColor="#111628"
+                    onClick={() => {
+                      closeAllModals();
+                    }}
+                  >
+                    Tutup
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      closeAllModals();
+                    }}
+                    disabled={submitting}
+                  >
+                    Batal
+                  </Button>
+                  <Button
+                    variant="primary"
+                    bgColor="#161b33"
+                    hoverColor="#111628"
+                    onClick={handleApprove}
+                    loading={submitting}
+                  >
+                    Setujui Peminjaman
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -432,24 +462,51 @@ export default function ApprovalPage() {
 
             {/* Footer */}
             <div className="p-6 border-t border-gray-200 flex items-center justify-end gap-3">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  closeAllModals();
-                }}
-                disabled={submitting}
-              >
-                Batal
-              </Button>
-              <Button
-                variant="primary"
-                bgColor="#161b33"
-                hoverColor="#111628"
-                onClick={handleConfirmTake}
-                loading={submitting}
-              >
-                Konfirmasi Barang Diambil
-              </Button>
+              {confirmedLoanData ? (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      generateBuktiPeminjamanPDF(confirmedLoanData);
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    <Download size={16} />
+                    Download PDF Bukti Peminjaman
+                  </Button>
+                  <Button
+                    variant="primary"
+                    bgColor="#161b33"
+                    hoverColor="#111628"
+                    onClick={() => {
+                      closeAllModals();
+                    }}
+                  >
+                    Tutup
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      closeAllModals();
+                    }}
+                    disabled={submitting}
+                  >
+                    Batal
+                  </Button>
+                  <Button
+                    variant="primary"
+                    bgColor="#161b33"
+                    hoverColor="#111628"
+                    onClick={handleConfirmTake}
+                    loading={submitting}
+                  >
+                    Konfirmasi Barang Diambil
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
