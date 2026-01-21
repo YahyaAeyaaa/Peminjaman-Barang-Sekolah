@@ -46,22 +46,22 @@ model Category {
 }
 
 model Equipment {
-  id               String          @id @default(uuid())
-  nama             String
-  kode_alat        String?         @unique
-  kategori_id      String
-  stok             Int             @default(0)
-  status           EquipmentStatus @default(AVAILABLE)
-  gambar           String?
-  harga_sewa       Decimal?        @db.Decimal(10, 2)
-  deskripsi        String?
-  created_at       DateTime        @default(now())
-  updated_at       DateTime        @updatedAt
-  harga_alat       Decimal?        @db.Decimal(10, 2)
-  tags             String[]        @default([])
-  max_loan_duration Int?           // Batas waktu maksimal peminjaman (dalam hari)
-  kategori         Category        @relation(fields: [kategori_id], references: [id])
-  loans            Loan[]
+  id          String          @id @default(uuid())
+  nama        String
+  kode_alat   String?         @unique
+  kategori_id String
+  stok        Int             @default(0)
+  status      EquipmentStatus @default(AVAILABLE)
+  gambar      String?
+  harga_sewa  Decimal?        @db.Decimal(10, 2)
+  deskripsi   String?
+  created_at  DateTime        @default(now())
+  updated_at  DateTime        @updatedAt
+  harga_alat  Decimal?        @db.Decimal(10, 2)
+  max_loan_duration Int?
+  tags        String[]        @default([])
+  kategori    Category        @relation(fields: [kategori_id], references: [id])
+  loans       Loan[]
 
   @@index([kategori_id, status])
   @@index([status, stok])

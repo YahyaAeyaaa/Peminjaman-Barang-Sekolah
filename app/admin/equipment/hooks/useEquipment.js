@@ -14,7 +14,6 @@ const initialFormData = {
   harga_barang: '',
   deskripsi: '',
   tags: [],
-  max_loan_duration: '',
 };
 
 export function useEquipment() {
@@ -118,12 +117,6 @@ export function useEquipment() {
       return;
     }
 
-    if (!formData.max_loan_duration || formData.max_loan_duration < 1) {
-      setFormErrors({ max_loan_duration: 'Batas waktu maksimal peminjaman minimal 1 hari' });
-      setUploadingImage(false);
-      return;
-    }
-
     try {
       // Upload gambar jika ada file baru
       let imageUrl = formData.gambar;
@@ -155,7 +148,6 @@ export function useEquipment() {
         gambar: imageUrl?.trim() || null,
         deskripsi: formData.deskripsi?.trim() || null,
         tags: Array.isArray(formData.tags) ? formData.tags : [],
-        max_loan_duration: formData.max_loan_duration ? parseInt(formData.max_loan_duration) : null,
       };
       
       // Hapus harga_barang dari payload karena sudah di-map ke harga_alat
@@ -201,7 +193,6 @@ export function useEquipment() {
       harga_barang: item.harga_alat ? item.harga_alat.toString() : '',
       deskripsi: item.deskripsi || '',
       tags: Array.isArray(item.tags) ? item.tags : [],
-      max_loan_duration: item.max_loan_duration || '',
     });
     setTagInput('');
     setImageFile(null);
@@ -234,7 +225,6 @@ export function useEquipment() {
     setFormData({
       ...initialFormData,
       status: null, // Reset status ke null untuk create
-      max_loan_duration: '',
     });
     setTagInput('');
     setImageFile(null);
@@ -331,6 +321,8 @@ export function useEquipment() {
     handleTagInputKeyPress,
     getStatusBadge,
     getStatusLabel,
+    fetchEquipment,
+    fetchCategories,
   };
 }
 

@@ -1,13 +1,18 @@
 'use client';
 
-import { Plus, Edit2, Trash2, X, Save, Users, Eye, EyeOff, Power } from 'lucide-react';
+import { useState } from 'react';
+import { Plus, Edit2, Trash2, X, Save, Users, Eye, EyeOff, Power, Upload, Download } from 'lucide-react';
 import Button from '@/components/button';
 import SearchComponent from '@/components/search';
 import FilterSelect from '@/components/filterSelect';
 import Input from '@/components/forminput';
 import { useUsers } from './hooks/useUsers';
+import * as XLSX from 'xlsx';
+import { useToast } from '@/components/ToastProvider';
+import { usersAPI } from '@/lib/api/users';
 
 export default function UsersPage() {
+  const toast = useToast();
   const {
     // State
     users,
@@ -36,7 +41,71 @@ export default function UsersPage() {
     resetForm,
     getRoleBadge,
     getRoleLabel,
+    fetchUsers,
   } = useUsers();
+
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile, setImportFile] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const [importResults, setImportResults] = useState(null);
+
+  const handleImportSubmit = async (e) => {
+    e.preventDefault();
+    if (!importFile) {
+      toast.error('Pilih file Excel terlebih dahulu.');
+      return;
+    }
+
+    setImporting(true);
+    setImportResults(null);
+
+    try {
+      const response = await usersAPI.importUsers(importFile);
+      if (response.success) {
+        toast.success('Import Berhasil', `${response.data.length} user berhasil diimport.`);
+        setImportResults(response);
+        fetchUsers();
+      } else {
+        toast.error('Import Gagal', response.error || 'Terjadi kesalahan saat import user.');
+        setImportResults(response);
+      }
+    } catch (error) {
+      console.error('Error importing users:', error);
+      toast.error('Import Gagal', error.message || 'Terjadi kesalahan saat import user.');
+      setImportResults({ success: false, error: error.message, skipped: [] });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleDownloadTemplate = () => {
+    const rows = [
+      {
+        email: 'siswa@example.com',
+        first_name: 'Budi',
+        last_name: 'Santoso',
+        password: 'password123',
+        role: 'SISWA',
+        kelas: 'X-IPA-1',
+        no_hp: '081234567890',
+        alamat: 'Jl. Pendidikan No. 1',
+      },
+      {
+        email: 'petugas@example.com',
+        first_name: 'Sinta',
+        last_name: 'Wijaya',
+        password: 'petugas123',
+        role: 'PETUGAS',
+        kelas: '',
+        no_hp: '081298765432',
+        alamat: 'Ruang Laboratorium',
+      },
+    ];
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Users');
+    XLSX.writeFile(wb, 'template_import_user.xlsx');
+  };
 
   return (
     <div className="min-h-screen p-8">
@@ -54,16 +123,28 @@ export default function UsersPage() {
               Kelola akun petugas dan peminjam di sistem
             </p>
           </div>
-          <Button
-            onClick={() => setIsFormOpen(true)}
-            variant="primary"
-            bgColor="#161b33"
-            hoverColor="#111628"
-            className="flex items-center gap-2 shadow-sm"
-          >
-            <Plus size={20} />
-            Tambah User
-          </Button>
+          <div className="flex gap-3">
+            <Button
+              onClick={() => setShowImportModal(true)}
+              variant="outline"
+              className="flex items-center gap-2 shadow-sm"
+              radius="xl"
+              size="sm"
+            >
+              <Upload size={20} />
+              Import Excel
+            </Button>
+            <Button
+              onClick={() => setIsFormOpen(true)}
+              variant="primary"
+              bgColor="#161b33"
+              hoverColor="#111628"
+              className="flex items-center gap-2 shadow-sm"
+            >
+              <Plus size={20} />
+              Tambah User
+            </Button>
+          </div>
         </div>
 
         {/* Search and Filters */}
@@ -418,6 +499,141 @@ export default function UsersPage() {
                   {editingUser ? 'Update' : 'Simpan'}
                 </Button>
               </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Import Excel Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Import User dari Excel</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Upload file Excel (.xlsx, .xls, .csv) untuk menambahkan user (Siswa & Petugas).
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowImportModal(false);
+                  setImportFile(null);
+                  setImportResults(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg p-1 transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <form onSubmit={handleImportSubmit} className="p-6 space-y-5">
+              {!importResults ? (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Pilih File Excel <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="file"
+                      accept=".xlsx, .xls, .csv"
+                      onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                      className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                      required
+                    />
+                    {importFile && (
+                      <p className="mt-2 text-sm text-gray-600">File terpilih: {importFile.name}</p>
+                    )}
+                  </div>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800 space-y-2">
+                    <p className="font-semibold">Format Kolom:</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      <li>email (wajib, unik)</li>
+                      <li>first_name (wajib)</li>
+                      <li>last_name (wajib)</li>
+                      <li>password (wajib, min 6 karakter)</li>
+                      <li>role (SISWA/PEMINJAM atau PETUGAS, default SISWA)</li>
+                      <li>kelas (wajib untuk SISWA/PEMINJAM, kosongkan untuk PETUGAS)</li>
+                      <li>no_hp (opsional), alamat (opsional)</li>
+                    </ul>
+                    <Button
+                      type="button"
+                      onClick={handleDownloadTemplate}
+                      variant="outline"
+                      className="mt-3 flex items-center gap-2 text-xs"
+                    >
+                      <Download size={14} />
+                      Download Template
+                    </Button>
+                  </div>
+                  <div className="flex gap-3 pt-4 border-t border-gray-100">
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      bgColor="#161b33"
+                      hoverColor="#111628"
+                      className="flex-1 flex items-center justify-center gap-2"
+                      disabled={importing || !importFile}
+                      loading={importing}
+                    >
+                      <Upload size={18} />
+                      {importing ? 'Mengimport...' : 'Import User'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setShowImportModal(false);
+                        setImportFile(null);
+                      }}
+                      className="flex-1 border-gray-200 hover:bg-gray-50"
+                      disabled={importing}
+                    >
+                      Batal
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-4">
+                  {importResults.success ? (
+                    <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl">
+                      <p className="font-semibold">Import Berhasil!</p>
+                      <p>{importResults.data.length} user berhasil ditambahkan.</p>
+                    </div>
+                  ) : (
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl">
+                      <p className="font-semibold">Import Gagal!</p>
+                      <p>{importResults.error}</p>
+                    </div>
+                  )}
+                  {importResults.skipped && importResults.skipped.length > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded-xl max-h-48 overflow-y-auto">
+                      <p className="font-semibold mb-2">Baris yang dilewati:</p>
+                      <ul className="list-disc list-inside text-sm">
+                        {importResults.skipped.map((item, index) => (
+                          <li key={`${item.rowNumber}-${index}`}>
+                            Baris {item.rowNumber}: "{item.row?.email || 'Email kosong'}" - {item.reason}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="primary"
+                      bgColor="#161b33"
+                      hoverColor="#111628"
+                      onClick={() => {
+                        setShowImportModal(false);
+                        setImportFile(null);
+                        setImportResults(null);
+                      }}
+                    >
+                      Tutup
+                    </Button>
+                  </div>
+                </div>
+              )}
             </form>
           </div>
         </div>

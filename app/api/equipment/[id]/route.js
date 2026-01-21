@@ -82,7 +82,6 @@ export async function PATCH(request, { params }) {
       harga_alat,
       deskripsi,
       tags,
-      max_loan_duration,
     } = body;
 
     // Cek apakah equipment ada
@@ -173,25 +172,6 @@ export async function PATCH(request, { params }) {
       // Set tags (bisa empty array)
       updateData.tags = equipmentTags;
     }
-
-    // Validasi max_loan_duration jika diubah
-    if (max_loan_duration !== undefined) {
-      if (max_loan_duration === null || max_loan_duration === '') {
-        return NextResponse.json(
-          { success: false, error: 'Batas waktu maksimal peminjaman wajib diisi' },
-          { status: 400 }
-        );
-      }
-      const parsedDuration = parseInt(max_loan_duration);
-      if (isNaN(parsedDuration) || parsedDuration < 1) {
-        return NextResponse.json(
-          { success: false, error: 'Batas waktu maksimal peminjaman minimal 1 hari' },
-          { status: 400 }
-        );
-      }
-      updateData.max_loan_duration = parsedDuration;
-    }
-
     if (nama !== undefined) updateData.nama = nama.trim();
     if (kode_alat !== undefined) updateData.kode_alat = kode_alat?.trim() || null;
     if (kategori_id !== undefined) updateData.kategori_id = kategori_id.trim();
@@ -295,11 +275,6 @@ export async function DELETE(request, { params }) {
     // Cek apakah equipment ada
     const equipment = await prisma.equipment.findUnique({
       where: { id },
-      include: {
-        _count: {
-          select: { loans: true },
-        },
-      },
     });
 
     if (!equipment) {
@@ -309,16 +284,67 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    // Cek apakah ada loan yang menggunakan equipment ini
-    if (equipment._count.loans > 0) {
+    // Cek apakah ada loan aktif yang menggunakan equipment ini
+    // Loan yang masih aktif: PENDING, APPROVED, BORROWED, OVERDUE
+    // Loan yang sudah selesai: REJECTED, RETURNED (bisa diabaikan karena sudah tidak aktif)
+    const activeLoansCount = await prisma.loan.count({
+      where: {
+        equipment_id: id,
+        status: {
+          in: ['PENDING', 'APPROVED', 'BORROWED', 'OVERDUE'],
+        },
+      },
+    });
+
+    if (activeLoansCount > 0) {
       return NextResponse.json(
         {
           success: false,
-          error: `Tidak bisa menghapus alat karena masih digunakan dalam ${equipment._count.loans} peminjaman`,
+          error: `Tidak bisa menghapus alat karena masih digunakan dalam ${activeLoansCount} peminjaman aktif. Selesaikan atau tolak peminjaman yang masih aktif terlebih dahulu.`,
         },
         { status: 400 }
       );
     }
+
+    // Urutan hapus karena foreign key constraint:
+    // 1. Hapus returns (yang reference ke loans)
+    // 2. Hapus loans yang sudah selesai (REJECTED, RETURNED)
+    // 3. Baru hapus equipment
+
+    // 1. Ambil semua loan yang sudah selesai untuk equipment ini
+    const loansWithReturns = await prisma.loan.findMany({
+      where: {
+        equipment_id: id,
+        status: {
+          in: ['REJECTED', 'RETURNED'],
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    // 2. Hapus returns yang reference ke loans tersebut (harus duluan)
+    const loanIds = loansWithReturns.map(loan => loan.id);
+    if (loanIds.length > 0) {
+      await prisma.return.deleteMany({
+        where: {
+          loan_id: {
+            in: loanIds,
+          },
+        },
+      });
+    }
+
+    // 3. Hapus semua loan yang sudah selesai (REJECTED, RETURNED)
+    await prisma.loan.deleteMany({
+      where: {
+        equipment_id: id,
+        status: {
+          in: ['REJECTED', 'RETURNED'],
+        },
+      },
+    });
 
     // Prepare old data for logging
     const oldData = {

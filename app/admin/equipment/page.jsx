@@ -1,13 +1,18 @@
 'use client';
 
-import { Plus, Edit2, Trash2, X, Save, Package } from 'lucide-react';
+import { useState } from 'react';
+import { Plus, Edit2, Trash2, X, Save, Package, Upload, Download } from 'lucide-react';
 import Button from '@/components/button';
 import ImageInput from '@/components/fileInput';
 import SearchComponent from '@/components/search';
 import FilterSelect from '@/components/filterSelect';
 import { useEquipment } from './hooks/useEquipment';
+import { useToast } from '@/components/ToastProvider';
+import { equipmentAPI } from '@/lib/api/equipment';
+import * as XLSX from 'xlsx';
 
 export default function EquipmentPage() {
+  const toast = useToast();
   const {
     // State
     equipment,
@@ -43,7 +48,73 @@ export default function EquipmentPage() {
     handleTagInputKeyPress,
     getStatusBadge,
     getStatusLabel,
+    fetchEquipment,
+    fetchCategories,
   } = useEquipment();
+
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile, setImportFile] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const [importResults, setImportResults] = useState(null);
+
+  const handleImportSubmit = async (e) => {
+    e.preventDefault();
+    if (!importFile) {
+      toast.error('Pilih file Excel terlebih dahulu.');
+      return;
+    }
+
+    setImporting(true);
+    setImportResults(null);
+
+    try {
+      const response = await equipmentAPI.importEquipment(importFile);
+      if (response.success) {
+        toast.success('Import Berhasil', `${response.data.length} alat berhasil diimport.`);
+        setImportResults(response);
+        fetchEquipment();
+        fetchCategories(); // mungkin ada kategori yang sebelumnya tidak terbaca? tapi tetap refresh
+      } else {
+        toast.error('Import Gagal', response.error || 'Terjadi kesalahan saat import alat.');
+        setImportResults(response);
+      }
+    } catch (error) {
+      console.error('Error importing equipment:', error);
+      toast.error('Import Gagal', error.message || 'Terjadi kesalahan saat import alat.');
+      setImportResults({ success: false, error: error.message, skipped: [] });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleDownloadTemplate = () => {
+    const rows = [
+      {
+        nama: 'Mikroskop Biologi',
+        kategori: 'Laboratorium',
+        kode_alat: 'LAB-001',
+        stok: 5,
+        harga_alat: 1500000,
+        max_loan_duration: 3,
+        deskripsi: 'Mikroskop untuk praktikum',
+        tags: 'optik,biologi',
+      },
+      {
+        nama: 'Tripod Kamera',
+        kategori: 'Peralatan Multimedia',
+        kode_alat: 'MM-010',
+        stok: 2,
+        harga_alat: 250000,
+        max_loan_duration: 7,
+        deskripsi: 'Tripod tinggi 170cm',
+        tags: 'kamera,tripod',
+      },
+    ];
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Equipment');
+    XLSX.writeFile(wb, 'template_import_alat.xlsx');
+  };
 
   return (
     <div className="min-h-screen p-8">
@@ -61,16 +132,28 @@ export default function EquipmentPage() {
               Kelola data alat yang tersedia untuk dipinjam
             </p>
           </div>
-          <Button
-            onClick={() => setIsFormOpen(true)}
-            variant="primary"
-            bgColor="#161b33"
-            hoverColor="#111628"
-            className="flex items-center gap-2 shadow-sm"
-          >
-            <Plus size={20} />
-            Tambah Alat
-          </Button>
+          <div className="flex gap-3">
+            <Button
+              onClick={() => setShowImportModal(true)}
+              variant="outline"
+              className="flex items-center gap-2 shadow-sm"
+              radius="xl"
+              size="sm"
+            >
+              <Upload size={20} />
+              Import Excel
+            </Button>
+            <Button
+              onClick={() => setIsFormOpen(true)}
+              variant="primary"
+              bgColor="#161b33"
+              hoverColor="#111628"
+              className="flex items-center gap-2 shadow-sm"
+            >
+              <Plus size={20} />
+              Tambah Alat
+            </Button>
+          </div>
         </div>
 
         {/* Search and Filters */}
@@ -221,6 +304,142 @@ export default function EquipmentPage() {
           )}
         </div>
       </div>
+
+      {/* Import Excel Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Import Alat dari Excel</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Upload file Excel (.xlsx, .xls, .csv) dengan kolom nama & kategori (nama kategori).
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowImportModal(false);
+                  setImportFile(null);
+                  setImportResults(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg p-1 transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <form onSubmit={handleImportSubmit} className="p-6 space-y-5">
+              {!importResults ? (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Pilih File Excel <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="file"
+                      accept=".xlsx, .xls, .csv"
+                      onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                      className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                      required
+                    />
+                    {importFile && (
+                      <p className="mt-2 text-sm text-gray-600">File terpilih: {importFile.name}</p>
+                    )}
+                  </div>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800 space-y-2">
+                    <p className="font-semibold">Format Kolom:</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      <li>nama (wajib)</li>
+                      <li>kategori (wajib, isi nama kategori yang sudah ada)</li>
+                      <li>kode_alat (opsional, unik)</li>
+                      <li>stok (opsional, angka; default 0)</li>
+                      <li>harga_alat (opsional, angka)</li>
+                      <li>max_loan_duration (opsional, angka hari, contoh: 3, 7, 14)</li>
+                      <li>deskripsi (opsional)</li>
+                      <li>tags (opsional, koma-separated)</li>
+                    </ul>
+                    <Button
+                      type="button"
+                      onClick={handleDownloadTemplate}
+                      variant="outline"
+                      className="mt-3 flex items-center gap-2 text-xs"
+                    >
+                      <Download size={14} />
+                      Download Template
+                    </Button>
+                  </div>
+                  <div className="flex gap-3 pt-4 border-t border-gray-100">
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      bgColor="#161b33"
+                      hoverColor="#111628"
+                      className="flex-1 flex items-center justify-center gap-2"
+                      disabled={importing || !importFile}
+                      loading={importing}
+                    >
+                      <Upload size={18} />
+                      {importing ? 'Mengimport...' : 'Import Alat'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setShowImportModal(false);
+                        setImportFile(null);
+                      }}
+                      className="flex-1 border-gray-200 hover:bg-gray-50"
+                      disabled={importing}
+                    >
+                      Batal
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-4">
+                  {importResults.success ? (
+                    <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl">
+                      <p className="font-semibold">Import Berhasil!</p>
+                      <p>{importResults.data.length} alat berhasil ditambahkan.</p>
+                    </div>
+                  ) : (
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl">
+                      <p className="font-semibold">Import Gagal!</p>
+                      <p>{importResults.error}</p>
+                    </div>
+                  )}
+                  {importResults.skipped && importResults.skipped.length > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded-xl max-h-48 overflow-y-auto">
+                      <p className="font-semibold mb-2">Baris yang dilewati:</p>
+                      <ul className="list-disc list-inside text-sm">
+                        {importResults.skipped.map((item, index) => (
+                          <li key={`${item.rowNumber}-${index}`}>
+                            Baris {item.rowNumber}: "{item.row?.nama || 'Nama kosong'}" - {item.reason}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="primary"
+                      bgColor="#161b33"
+                      hoverColor="#111628"
+                      onClick={() => {
+                        setShowImportModal(false);
+                        setImportFile(null);
+                        setImportResults(null);
+                      }}
+                    >
+                      Tutup
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Form Modal */}
       {isFormOpen && (
@@ -382,29 +601,6 @@ export default function EquipmentPage() {
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#161b33] focus:border-transparent transition-all"
                     placeholder="0"
                   />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Batas Waktu Maksimal Peminjaman (Hari) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={formData.max_loan_duration || ''}
-                    onChange={(e) => setFormData({ ...formData, max_loan_duration: e.target.value ? parseInt(e.target.value) : '' })}
-                    className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-[#161b33] focus:border-transparent transition-all ${
-                      formErrors.max_loan_duration ? 'border-red-300' : 'border-gray-200'
-                    }`}
-                    placeholder="Contoh: 7"
-                    required
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Maksimal durasi peminjaman untuk alat ini (dalam hari)
-                  </p>
-                  {formErrors.max_loan_duration && (
-                    <p className="mt-1 text-sm text-red-600">{formErrors.max_loan_duration}</p>
-                  )}
                 </div>
 
                 <div className="sm:col-span-2">
