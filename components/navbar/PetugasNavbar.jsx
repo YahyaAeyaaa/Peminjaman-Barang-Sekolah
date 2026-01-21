@@ -14,7 +14,7 @@ export default function PetugasNavbar() {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   const handleLogout = async () => {
-    await signOut({ redirect: true, callbackUrl: '/' });
+    await signOut({ redirect: true, callbackUrl: '/Login' });
   };
 
   const displayInitials = userInitials || 'PT';

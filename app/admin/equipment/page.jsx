@@ -384,6 +384,29 @@ export default function EquipmentPage() {
                   />
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Batas Waktu Maksimal Peminjaman (Hari) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={formData.max_loan_duration || ''}
+                    onChange={(e) => setFormData({ ...formData, max_loan_duration: e.target.value ? parseInt(e.target.value) : '' })}
+                    className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-[#161b33] focus:border-transparent transition-all ${
+                      formErrors.max_loan_duration ? 'border-red-300' : 'border-gray-200'
+                    }`}
+                    placeholder="Contoh: 7"
+                    required
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Maksimal durasi peminjaman untuk alat ini (dalam hari)
+                  </p>
+                  {formErrors.max_loan_duration && (
+                    <p className="mt-1 text-sm text-red-600">{formErrors.max_loan_duration}</p>
+                  )}
+                </div>
+
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Deskripsi

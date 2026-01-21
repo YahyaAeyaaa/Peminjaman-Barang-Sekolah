@@ -28,7 +28,7 @@ export const getKondisiColor = (kondisi) => {
     'BAIK': 'bg-green-50 text-green-700 border-green-200',
     'RUSAK_RINGAN': 'bg-yellow-50 text-yellow-700 border-yellow-200',
     'RUSAK_SEDANG': 'bg-orange-50 text-orange-700 border-orange-200',
-    'RUSAK_BERAT': 'bg-red-50 text-red-700 border-red-200',
+    'RUSAK_BERAT': 'bg-red-50 text-red-700 border-red-200', 
     'HILANG': 'bg-red-100 text-red-800 border-red-300'
   };
   return colors[kondisi] || 'bg-gray-50 text-gray-700 border-gray-200';

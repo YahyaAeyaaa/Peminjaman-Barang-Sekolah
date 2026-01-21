@@ -103,6 +103,7 @@ export async function POST(request) {
       harga_alat,
       deskripsi,
       tags,
+      max_loan_duration,
     } = body;
 
     // Validasi required fields
@@ -174,6 +175,24 @@ export async function POST(request) {
         .filter(tag => tag.length > 0);
     }
 
+    // Validasi max_loan_duration
+    let equipmentMaxLoanDuration = null;
+    if (max_loan_duration !== undefined && max_loan_duration !== null && max_loan_duration !== '') {
+      const parsedDuration = parseInt(max_loan_duration);
+      if (isNaN(parsedDuration) || parsedDuration < 1) {
+        return NextResponse.json(
+          { success: false, error: 'Batas waktu maksimal peminjaman minimal 1 hari' },
+          { status: 400 }
+        );
+      }
+      equipmentMaxLoanDuration = parsedDuration;
+    } else {
+      return NextResponse.json(
+        { success: false, error: 'Batas waktu maksimal peminjaman wajib diisi' },
+        { status: 400 }
+      );
+    }
+
     // Prepare data untuk create
     const equipmentData = {
       nama: nama.trim(),
@@ -186,6 +205,7 @@ export async function POST(request) {
       harga_alat: harga_alat ? parseFloat(harga_alat) : null,
       deskripsi: deskripsi?.trim() || null,
       tags: equipmentTags,
+      max_loan_duration: equipmentMaxLoanDuration,
     };
 
     console.log('Data yang akan di-create:', equipmentData);

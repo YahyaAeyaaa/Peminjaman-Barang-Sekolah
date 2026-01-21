@@ -82,6 +82,7 @@ export async function PATCH(request, { params }) {
       harga_alat,
       deskripsi,
       tags,
+      max_loan_duration,
     } = body;
 
     // Cek apakah equipment ada
@@ -172,6 +173,25 @@ export async function PATCH(request, { params }) {
       // Set tags (bisa empty array)
       updateData.tags = equipmentTags;
     }
+
+    // Validasi max_loan_duration jika diubah
+    if (max_loan_duration !== undefined) {
+      if (max_loan_duration === null || max_loan_duration === '') {
+        return NextResponse.json(
+          { success: false, error: 'Batas waktu maksimal peminjaman wajib diisi' },
+          { status: 400 }
+        );
+      }
+      const parsedDuration = parseInt(max_loan_duration);
+      if (isNaN(parsedDuration) || parsedDuration < 1) {
+        return NextResponse.json(
+          { success: false, error: 'Batas waktu maksimal peminjaman minimal 1 hari' },
+          { status: 400 }
+        );
+      }
+      updateData.max_loan_duration = parsedDuration;
+    }
+
     if (nama !== undefined) updateData.nama = nama.trim();
     if (kode_alat !== undefined) updateData.kode_alat = kode_alat?.trim() || null;
     if (kategori_id !== undefined) updateData.kategori_id = kategori_id.trim();
