@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, X, Save, Eye } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Plus, Edit2, Trash2, X, Save, Eye, Upload, FileSpreadsheet, Download } from 'lucide-react';
 import Button from '@/components/button';
 import SearchComponent from '@/components/search';
 import { categoriesAPI } from '@/lib/api/categories';
@@ -24,6 +24,10 @@ export default function CategoriesPage() {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [categoryEquipment, setCategoryEquipment] = useState([]);
   const [loadingEquipment, setLoadingEquipment] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importFile, setImportFile] = useState(null);
+  const fileInputRef = useRef(null);
 
   // Fetch categories
   const fetchCategories = async () => {
@@ -142,6 +146,79 @@ export default function CategoriesPage() {
     setCategoryEquipment([]);
   };
 
+  // Handle file input change
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      const allowedTypes = [
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-excel',
+        'text/csv',
+      ];
+      
+      if (!allowedTypes.includes(file.type)) {
+        toast.error('Format file tidak didukung', 'Gunakan file Excel (.xlsx, .xls) atau CSV (.csv)');
+        return;
+      }
+      
+      setImportFile(file);
+    }
+  };
+
+  // Handle import submit
+  const handleImportSubmit = async () => {
+    if (!importFile) {
+      toast.error('Pilih file terlebih dahulu', 'Silakan pilih file Excel yang akan diimport');
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const response = await categoriesAPI.import(importFile);
+
+      if (response.success) {
+        toast.success(
+          'Import Berhasil',
+          `Berhasil mengimport ${response.data.created} kategori${response.data.skipped > 0 ? `, ${response.data.skipped} data dilewati` : ''}`
+        );
+        setImportModalOpen(false);
+        setImportFile(null);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+        fetchCategories();
+      } else {
+        toast.error('Gagal Import', response.error || 'Terjadi kesalahan saat mengimport data');
+      }
+    } catch (error) {
+      console.error('Error importing categories:', error);
+      toast.error('Gagal Import', error.message || 'Terjadi kesalahan saat mengimport data');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  // Handle download template
+  const handleDownloadTemplate = () => {
+    // Create template Excel data
+    const templateData = [
+      ['nama', 'deskripsi'],
+      ['VGA', 'Kartu grafis untuk komputer'],
+      ['RAM', 'Random Access Memory'],
+      ['Processor', 'Central Processing Unit'],
+    ];
+
+    // Create workbook
+    const XLSX = require('xlsx');
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(templateData);
+    XLSX.utils.book_append_sheet(wb, ws, 'Kategori');
+
+    // Download file
+    XLSX.writeFile(wb, 'template-import-kategori.xlsx');
+  };
+
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -160,28 +237,41 @@ export default function CategoriesPage() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <SearchComponent
             value={searchTerm}
             onChange={setSearchTerm}
             placeholder="Cari kategori..."
             size="small"
-            className="w-1/2"
+            className="flex-1"
           />
           
-          <Button
-            onClick={() => setIsFormOpen(true)}
-            variant="primary"
-            bgColor="#161b33"
-            hoverColor="#111628"
-            className="flex items-center gap-2 shadow-sm"
-            radius="xl" 
-            size="sm"
-          >
-            <Plus size={20} />
-            Tambah Kategori
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setImportModalOpen(true)}
+              variant="outline"
+              className="flex items-center gap-2 border-gray-200 hover:bg-gray-50"
+              radius="xl"
+              size="sm"
+            >
+              <Upload size={18} />
+              Import Excel
+            </Button>
+            
+            <Button
+              onClick={() => setIsFormOpen(true)}
+              variant="primary"
+              bgColor="#161b33"
+              hoverColor="#111628"
+              className="flex items-center gap-2 shadow-sm"
+              radius="xl" 
+              size="sm"
+            >
+              <Plus size={20} />
+              Tambah Kategori
+            </Button>
           </div>
+        </div>
         {/* Search Bar */}
 
         {/* Cards Grid */}
@@ -469,6 +559,112 @@ export default function CategoriesPage() {
               >
                 Tutup
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import Modal */}
+      {importModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Import Kategori dari Excel
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Upload file Excel untuk menambahkan kategori secara massal
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setImportModalOpen(false);
+                  setImportFile(null);
+                  if (fileInputRef.current) {
+                    fileInputRef.current.value = '';
+                  }
+                }}
+                className="text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg p-1 transition-colors"
+                disabled={importing}
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              {/* Download Template */}
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <FileSpreadsheet className="text-blue-600 mt-0.5" size={20} />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-blue-900 mb-1">
+                      Format File Excel
+                    </p>
+                    <p className="text-xs text-blue-700 mb-3">
+                      Kolom A: Nama Kategori (wajib)<br />
+                      Kolom B: Deskripsi (opsional)
+                    </p>
+                    <button
+                      onClick={handleDownloadTemplate}
+                      className="text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1"
+                    >
+                      <Download size={14} />
+                      Download Template Excel
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* File Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Pilih File Excel <span className="text-red-500">*</span>
+                </label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
+                  onChange={handleFileChange}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#161b33] focus:border-transparent transition-all file:mr-4 file:py-1 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+                  disabled={importing}
+                />
+                {importFile && (
+                  <p className="mt-2 text-sm text-gray-600">
+                    File terpilih: <span className="font-medium">{importFile.name}</span>
+                  </p>
+                )}
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  onClick={handleImportSubmit}
+                  variant="primary"
+                  bgColor="#161b33"
+                  hoverColor="#111628"
+                  className="flex-1 flex items-center justify-center gap-2"
+                  disabled={!importFile || importing}
+                  loading={importing}
+                >
+                  <Upload size={18} />
+                  {importing ? 'Mengimport...' : 'Import Data'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setImportModalOpen(false);
+                    setImportFile(null);
+                    if (fileInputRef.current) {
+                      fileInputRef.current.value = '';
+                    }
+                  }}
+                  className="flex-1 border-gray-200 hover:bg-gray-50"
+                  disabled={importing}
+                >
+                  Batal
+                </Button>
+              </div>
             </div>
           </div>
         </div>

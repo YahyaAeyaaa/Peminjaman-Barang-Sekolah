@@ -239,6 +239,7 @@ export function useUsers() {
     resetForm,
     getRoleBadge,
     getRoleLabel,
+    fetchUsers,
   };
 }
 

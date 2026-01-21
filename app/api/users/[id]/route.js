@@ -314,18 +314,31 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    // Cek apakah user masih punya peminjaman aktif
-    if (user._count.loans > 0) {
-      return NextResponse.json(
-        { success: false, error: 'User masih memiliki peminjaman aktif. Tidak dapat dihapus.' },
-        { status: 400 }
-      );
-    }
-
     // Jangan biarkan delete user sendiri
     if (id === session.user.id) {
       return NextResponse.json(
         { success: false, error: 'Tidak dapat menghapus akun sendiri' },
+        { status: 400 }
+      );
+    }
+
+    // Cek apakah user masih punya peminjaman aktif
+    // Loan yang masih aktif: PENDING, APPROVED, BORROWED, OVERDUE
+    const activeLoansCount = await prisma.loan.count({
+      where: {
+        user_id: id,
+        status: {
+          in: ['PENDING', 'APPROVED', 'BORROWED', 'OVERDUE'],
+        },
+      },
+    });
+
+    if (activeLoansCount > 0) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: `User masih memiliki ${activeLoansCount} peminjaman aktif. Tidak dapat dihapus.` 
+        },
         { status: 400 }
       );
     }
@@ -340,7 +353,47 @@ export async function DELETE(request, { params }) {
       is_active: user.is_active,
     };
 
-    // Delete user
+    // Urutan hapus karena foreign key constraint:
+    // 1. Hapus returns (yang reference ke loans)
+    // 2. Hapus loans yang sudah selesai (REJECTED, RETURNED)
+    // 3. Baru hapus user
+
+    // 1. Hapus semua returns yang terkait dengan loans user ini
+    const loansWithReturns = await prisma.loan.findMany({
+      where: {
+        user_id: id,
+        status: {
+          in: ['REJECTED', 'RETURNED'],
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    const loanIds = loansWithReturns.map(loan => loan.id);
+    if (loanIds.length > 0) {
+      // Hapus returns yang reference ke loans tersebut
+      await prisma.return.deleteMany({
+        where: {
+          loan_id: {
+            in: loanIds,
+          },
+        },
+      });
+    }
+
+    // 2. Hapus semua loans yang sudah selesai (REJECTED, RETURNED)
+    await prisma.loan.deleteMany({
+      where: {
+        user_id: id,
+        status: {
+          in: ['REJECTED', 'RETURNED'],
+        },
+      },
+    });
+
+    // 3. Hapus user
     await prisma.user.delete({
       where: { id },
     });
