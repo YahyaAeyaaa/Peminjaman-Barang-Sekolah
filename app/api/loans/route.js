@@ -99,6 +99,24 @@ export async function POST(request) {
       );
     }
 
+    // Validasi durasi peminjaman tidak melebihi max_loan_duration
+    if (equipment.max_loan_duration) {
+      const tanggalPinjam = new Date();
+      tanggalPinjam.setHours(0, 0, 0, 0);
+      const diffTime = deadlineDate - tanggalPinjam;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays > equipment.max_loan_duration) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: `Durasi peminjaman maksimal ${equipment.max_loan_duration} hari untuk alat ini. Anda meminta ${diffDays} hari` 
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     // Create loan
     const loan = await prisma.loan.create({
       data: {

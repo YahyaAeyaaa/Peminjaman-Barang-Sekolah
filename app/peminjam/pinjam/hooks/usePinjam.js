@@ -41,6 +41,7 @@ export function usePinjam(productId) {
             tags: equipment.tags || [],
             kode_alat: equipment.kode_alat,
             kategori_id: equipment.kategori_id,
+            max_loan_duration: equipment.max_loan_duration || null,
           };
 
           setProduct(transformedProduct);
@@ -89,6 +90,14 @@ export function usePinjam(productId) {
       const pinjam = new Date(formData.tanggalPinjam);
       if (estimasi <= pinjam) {
         newErrors.estimasiKembali = 'Estimasi pengembalian harus setelah tanggal peminjaman';
+      } else if (product?.max_loan_duration) {
+        // Hitung selisih hari
+        const diffTime = estimasi - pinjam;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays > product.max_loan_duration) {
+          newErrors.estimasiKembali = `Durasi peminjaman maksimal ${product.max_loan_duration} hari untuk alat ini`;
+        }
       }
     }
 

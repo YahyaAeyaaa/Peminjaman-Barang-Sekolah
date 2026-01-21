@@ -49,6 +49,7 @@ export default function PinjamPage() {
             tags: equipment.tags || [],
             kode_alat: equipment.kode_alat,
             kategori_id: equipment.kategori_id,
+            max_loan_duration: equipment.max_loan_duration || null,
           };
           
           setProduct(transformedProduct);
@@ -97,12 +98,20 @@ export default function PinjamPage() {
       const pinjam = new Date(formData.tanggalPinjam);
       if (estimasi <= pinjam) {
         newErrors.estimasiKembali = 'Estimasi pengembalian harus setelah tanggal peminjaman';
+      } else if (product?.max_loan_duration) {
+        // Hitung selisih hari
+        const diffTime = estimasi - pinjam;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays > product.max_loan_duration) {
+          newErrors.estimasiKembali = `Durasi peminjaman maksimal ${product.max_loan_duration} hari untuk alat ini. Anda memilih ${diffDays} hari`;
+        }
       }
     }
     
     if (!formData.jumlah || formData.jumlah < 1) {
       newErrors.jumlah = 'Jumlah minimal 1';
-    } else if (formData.jumlah > product.stock) {
+    } else if (product && formData.jumlah > product.stock) {
       newErrors.jumlah = `Jumlah tidak boleh melebihi stok tersedia (${product.stock})`;
     }
     
@@ -232,7 +241,7 @@ export default function PinjamPage() {
           />
 
           {/* Estimasi Pengembalian */}
-          <Input
+            <Input
             label="Estimasi Tanggal Pengembalian"
             type="date"
             name="estimasiKembali"
@@ -242,7 +251,11 @@ export default function PinjamPage() {
             error={errors.estimasiKembali}
             leftIcon={<Calendar size={18} />}
             min={formData.tanggalPinjam}
-            helperText="Pilih tanggal estimasi pengembalian barang"
+            helperText={
+              product?.max_loan_duration
+                ? `Maksimal ${product.max_loan_duration} hari peminjaman`
+                : 'Pilih tanggal estimasi pengembalian barang'
+            }
           />
 
           {/* Jumlah */}
