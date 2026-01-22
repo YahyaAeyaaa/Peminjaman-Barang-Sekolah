@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { User, LogOut, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import NotificationBell from './NotificationBell';
 
 export default function PetugasNavbar() {
   const pathname = usePathname();
@@ -25,6 +26,7 @@ export default function PetugasNavbar() {
     { href: '/petugas', label: 'Beranda' },
     { href: '/petugas/approval', label: 'Approval' },
     { href: '/petugas/returned', label: 'Pengembalian' },
+    { href: '/petugas/Notifikasi', label: 'Notifikasi' },
     { href: '/petugas/laporan', label: 'Laporan' },
   ];
 
@@ -58,8 +60,12 @@ export default function PetugasNavbar() {
             })}
           </div>
 
-          {/* Right Side - Profile Dropdown */}
-          <div className="relative">
+          {/* Right Side - Notifications & Profile */}
+          <div className="flex items-center gap-2">
+            <NotificationBell />
+            
+            {/* Profile Dropdown */}
+            <div className="relative">
             <button
               onClick={() => setShowProfileMenu(!showProfileMenu)}
               className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
@@ -116,6 +122,7 @@ export default function PetugasNavbar() {
                 </div>
               </>
             )}
+            </div>
           </div>
         </div>
       </div>
