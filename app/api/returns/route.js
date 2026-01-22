@@ -97,6 +97,15 @@ export async function POST(request) {
       include: {
         equipment: true,
         return: true,
+        user: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            email: true,
+            kelas: true,
+          },
+        },
       },
     });
 
@@ -182,6 +191,64 @@ export async function POST(request) {
           tanggal_kembali: now,
         },
       });
+
+      // Buat notifikasi untuk semua petugas/admin
+      try {
+        const petugasAdmins = await tx.user.findMany({
+          where: {
+            role: {
+              in: ['PETUGAS', 'ADMIN'],
+            },
+            is_active: true,
+          },
+          select: { id: true },
+        });
+
+        if (petugasAdmins.length > 0) {
+          const borrowerName = `${loan.user?.first_name || ''} ${loan.user?.last_name || ''}`.trim() || 'Peminjam';
+          const equipmentName = loan.equipment?.nama || 'Barang';
+
+          // Notifikasi pengembalian barang
+          const returnNotifications = petugasAdmins.map((user) => ({
+            user_id: user.id,
+            type: 'RETURN_SUBMITTED',
+            title: 'Pengembalian Barang Baru',
+            message: `${borrowerName} telah mengembalikan ${equipmentName}. Silakan konfirmasi pengembalian.`,
+            loan_id: loan.id,
+            return_id: ret.id,
+            is_read: false,
+          }));
+
+          if (returnNotifications.length > 0) {
+            await tx.notification.createMany({
+              data: returnNotifications,
+            });
+          }
+
+          // Jika telat, buat notifikasi khusus untuk telat
+          if (lateDays > 0) {
+            const lateNotifications = petugasAdmins.map((user) => ({
+              user_id: user.id,
+              type: 'RETURN_LATE',
+              title: 'Pengembalian Telat',
+              message: `${borrowerName} mengembalikan ${equipmentName} dengan keterlambatan ${lateDays} hari. Denda telat: Rp ${dendaTelat.toLocaleString('id-ID')}.`,
+              loan_id: loan.id,
+              return_id: ret.id,
+              is_read: false,
+            }));
+
+            if (lateNotifications.length > 0) {
+              await tx.notification.createMany({
+                data: lateNotifications,
+              });
+            }
+          }
+        }
+      } catch (notifError) {
+        // Log error tapi jangan gagalkan transaction jika notifikasi gagal
+        console.error('Error creating notifications:', notifError);
+        // Lanjutkan tanpa notifikasi
+      }
 
       // NOTE: stok akan ditambahkan setelah petugas menerima & konfirmasi pengembalian (belum dibuat)
       return ret;

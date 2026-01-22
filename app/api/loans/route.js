@@ -187,6 +187,89 @@ export async function GET(request) {
             rejection_reason: 'Pengajuan dibatalkan otomatis karena melewati batas waktu pengambilan (3 hari).',
           },
         });
+
+        // Cek dan update loan yang BORROWED tapi sudah melewati deadline (telat)
+        const overdueLoans = await prisma.loan.findMany({
+          where: {
+            status: 'BORROWED',
+            tanggal_deadline: {
+              lt: now,
+            },
+          },
+          include: {
+            equipment: true,
+            user: {
+              select: {
+                id: true,
+                first_name: true,
+                last_name: true,
+                email: true,
+              },
+            },
+          },
+        });
+
+        if (overdueLoans.length > 0) {
+          // Update status menjadi OVERDUE
+          await prisma.loan.updateMany({
+            where: {
+              id: {
+                in: overdueLoans.map((l) => l.id),
+              },
+            },
+            data: {
+              status: 'OVERDUE',
+            },
+          });
+
+          // Buat notifikasi untuk semua petugas/admin tentang loan yang telat
+          const petugasAdmins = await prisma.user.findMany({
+            where: {
+              role: {
+                in: ['PETUGAS', 'ADMIN'],
+              },
+              is_active: true,
+            },
+            select: { id: true },
+          });
+
+          const notifications = [];
+          for (const loan of overdueLoans) {
+            const borrowerName = `${loan.user.first_name} ${loan.user.last_name}`;
+            const equipmentName = loan.equipment.nama;
+            const msPerDay = 24 * 60 * 60 * 1000;
+            const lateDays = Math.max(0, Math.ceil((now.getTime() - new Date(loan.tanggal_deadline).getTime()) / msPerDay));
+
+            for (const user of petugasAdmins) {
+              // Cek apakah sudah ada notifikasi untuk loan ini dan user ini (untuk menghindari duplikasi)
+              const existingNotif = await prisma.notification.findFirst({
+                where: {
+                  user_id: user.id,
+                  loan_id: loan.id,
+                  type: 'RETURN_LATE',
+                  is_read: false,
+                },
+              });
+
+              if (!existingNotif) {
+                notifications.push({
+                  user_id: user.id,
+                  type: 'RETURN_LATE',
+                  title: 'Peminjaman Telat',
+                  message: `${borrowerName} belum mengembalikan ${equipmentName}. Telat ${lateDays} hari.`,
+                  loan_id: loan.id,
+                  is_read: false,
+                });
+              }
+            }
+          }
+
+          if (notifications.length > 0) {
+            await prisma.notification.createMany({
+              data: notifications,
+            });
+          }
+        }
       } catch (autoErr) {
         // Jangan gagalkan request utama hanya karena auto-reject gagal
         console.error('Error auto-reject APPROVED loans by batas_waktu_ambil:', autoErr);

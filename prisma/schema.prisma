@@ -30,6 +30,7 @@ model User {
   registrationCodes RegistrationCode[]
   returns_received  Return[]           @relation("ReceivedReturns")
   returns_made      Return[]           @relation("MadeReturns")
+  notifications     Notification[]
 
   @@map("users")
 }
@@ -241,4 +242,27 @@ enum RegistrationStatus {
   AKTIF
   NONAKTIF
   EXPIRED
+}
+
+model Notification {
+  id         String           @id @default(uuid())
+  user_id    String
+  type       NotificationType
+  title      String
+  message    String
+  is_read    Boolean          @default(false)
+  loan_id    String?
+  return_id  String?
+  created_at DateTime         @default(now())
+  read_at    DateTime?
+  user       User             @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, is_read])
+  @@index([created_at])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  RETURN_SUBMITTED
+  RETURN_LATE
 }
