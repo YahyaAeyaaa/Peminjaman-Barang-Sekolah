@@ -75,7 +75,6 @@ export default function RegisterPage() {
 
     if (!result.success) {
       const newErrors = {};
-      // Zod menggunakan 'issues' bukan 'errors'
       if (result.error && result.error.issues) {
         result.error.issues.forEach((err) => {
           if (err.path && err.path.length > 0) {
@@ -132,30 +131,29 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex bg-[#ebeff2]">
+    <div className="min-h-screen flex">
       {/* Left Side - Form */}
-      <div className="flex-1 flex flex-col bg-[#faf8f5] px-12 py-8">
+      <div className="flex-1 flex flex-col bg-[#f5f5f5] px-8 lg:px-16 py-8 overflow-y-auto">
         {/* Navigation */}
-        <nav className="flex items-center justify-between mb-12">
+        <nav className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-[#316e94] rounded-full"></div>
             <span className="text-black font-medium">Terserah Deh.</span>
           </div>
-          <div className="flex items-center gap-6 text-gray-400">
-            <a href="#" className="hover:text-gray-600">Profile Dev</a>
+          <div className="flex items-center gap-6">
+            <a href="#" className="text-gray-500 hover:text-gray-700 text-sm">Profile Dev</a>
           </div>
         </nav>
 
         {/* Form Content */}
-        <div className="flex-1 flex flex-col justify-center max-w-md mx-auto">
-          <h1 className="text-4xl font-bold text-black mb-2">
-            Register.
-            <span className="inline-block w-2 h-2 bg-[#de913e] rounded-full ml-2"></span>
+        <div className="flex-1 flex flex-col justify-center max-w-md mx-auto w-full">
+          <h1 className="text-3xl lg:text-4xl font-bold text-black mb-2">
+            Create Account
           </h1>
           
-          <p className="text-gray-400 mb-8">
+          <p className="text-gray-500 mb-6">
             Already A Member?{' '}
-            <Link href="/Login" className="text-blue-500 hover:underline">Sign In</Link>
+            <Link href="/Login" className="text-[#316e94] hover:underline font-medium">Sign In</Link>
           </p>
 
           {/* Form Kode Registrasi */}
@@ -173,7 +171,6 @@ export default function RegisterPage() {
                       placeholder="Masukkan kode registrasi"
                       value={registrationCode}
                       onChange={(e) => {
-                        // Auto uppercase saat diketik
                         setRegistrationCode(e.target.value.toUpperCase());
                         setCodeError('');
                       }}
@@ -227,105 +224,101 @@ export default function RegisterPage() {
 
           {/* Form Registrasi */}
           <form onSubmit={handleRegister} className="space-y-4" style={{ display: codeVerified ? 'block' : 'none' }}>
-
-              {/* First Name & Last Name */}
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Nama Depan"
-                  type="text"
-                  name="first_name"
-                  placeholder="John"
-                  value={registerForm.first_name}
-                  onChange={handleRegisterChange}
-                  leftIcon={<User size={18} />}
-                  radius="full"
-                  required
-                  error={errors.first_name}
-                  focusColor="#316e94"
-                />
-                <Input
-                  label="Nama Belakang"
-                  type="text"
-                  name="last_name"
-                  placeholder="Doe"
-                  value={registerForm.last_name}
-                  onChange={handleRegisterChange}
-                  leftIcon={<User size={18} />}
-                  radius="full"
-                  required
-                  error={errors.last_name}
-                  focusColor="#316e94"
-                />
-              </div>
-
-              {/* Email */}
+            {/* First Name & Last Name */}
+            <div className="grid grid-cols-2 gap-4">
               <Input
-                label="Email"
-                type="email"
-                name="email"
-                placeholder="nama@email.com"
-                value={registerForm.email}
+                label="Nama Depan"
+                type="text"
+                name="first_name"
+                placeholder="John"
+                value={registerForm.first_name}
                 onChange={handleRegisterChange}
-                leftIcon={<Mail size={18} />}
-                radius="full"
+                leftIcon={<User size={18} />}
+                radius="lg"
                 required
-                error={errors.email}
+                error={errors.first_name}
                 focusColor="#316e94"
               />
-
-              {/* Password */}
               <Input
-                label="Password"
-                type={showPassword ? 'text' : 'password'}
-                name="password"
-                placeholder="Minimal 6 karakter"
-                value={registerForm.password}
+                label="Nama Belakang"
+                type="text"
+                name="last_name"
+                placeholder="Doe"
+                value={registerForm.last_name}
                 onChange={handleRegisterChange}
-                leftIcon={<Lock size={18} />}
-                radius="full"
+                leftIcon={<User size={18} />}
+                radius="lg"
                 required
-                error={errors.password}
-                helperText="Minimal 6 karakter"
-                rightIcon={
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                }
+                error={errors.last_name}
                 focusColor="#316e94"
               />
+            </div>
 
-              {/* Confirm Password */}
-              <Input
-                label="Konfirmasi Password"
-                type={showConfirmPassword ? 'text' : 'password'}
-                name="confirm_password"
-                placeholder="Ulangi password"
-                value={registerForm.confirm_password}
-                onChange={handleRegisterChange}
-                leftIcon={<Lock size={18} />}
-                radius="full"
-                required
-                error={errors.confirm_password}
-                rightIcon={
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                }
-                focusColor="#316e94"
-              />
+            {/* Email */}
+            <Input
+              label="Email"
+              type="email"
+              name="email"
+              placeholder="nama@email.com"
+              value={registerForm.email}
+              onChange={handleRegisterChange}
+              leftIcon={<Mail size={18} />}
+              radius="lg"
+              required
+              error={errors.email}
+              focusColor="#316e94"
+            />
 
-              {/* Optional Fields */}
-              <div className="pt-2 border-t border-gray-200">
-                <p className="text-sm text-gray-500 mb-3">Informasi Tambahan (Opsional)</p>
-                
+            {/* Password */}
+            <Input
+              label="Password"
+              type={showPassword ? 'text' : 'password'}
+              name="password"
+              placeholder="Minimal 6 karakter"
+              value={registerForm.password}
+              onChange={handleRegisterChange}
+              leftIcon={<Lock size={18} />}
+              radius="lg"
+              required
+              error={errors.password}
+              helperText="Minimal 6 karakter"
+              rightIcon={
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              }
+              focusColor="#316e94"
+            />
+
+            {/* Confirm Password */}
+            <Input
+              label="Konfirmasi Password"
+              type={showConfirmPassword ? 'text' : 'password'}
+              name="confirm_password"
+              placeholder="Ulangi password"
+              value={registerForm.confirm_password}
+              onChange={handleRegisterChange}
+              leftIcon={<Lock size={18} />}
+              radius="lg"
+              required
+              error={errors.confirm_password}
+              rightIcon={
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              }
+              focusColor="#316e94"
+            />
+              
+              <div className="space-y-4 mt-4">
                 <Input
                   label="Kelas"
                   type="text"
@@ -334,82 +327,92 @@ export default function RegisterPage() {
                   value={registerForm.kelas}
                   onChange={handleRegisterChange}
                   leftIcon={<User size={18} />}
-                  radius="full"
+                  radius="lg"
                   focusColor="#316e94"
                 />
 
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                  <Input
-                    label="No. HP"
-                    type="tel"
-                    name="no_hp"
-                    placeholder="081234567890"
-                    value={registerForm.no_hp}
-                    onChange={handleRegisterChange}
-                    leftIcon={<User size={18} />}
-                    radius="full"
-                    focusColor="#316e94"
-                  />
-                </div>
+                <Input
+                  label="No. HP"
+                  type="tel"
+                  name="no_hp"
+                  placeholder="081234567890"
+                  value={registerForm.no_hp}
+                  onChange={handleRegisterChange}
+                  leftIcon={<User size={18} />}
+                  radius="lg"
+                  focusColor="#316e94"
+                />
 
-                <div className="mt-4">
-                  <Input
-                    label="Alamat"
-                    type="text"
-                    name="alamat"
-                    placeholder="Alamat lengkap"
-                    value={registerForm.alamat}
-                    onChange={handleRegisterChange}
-                    leftIcon={<User size={18} />}
-                    radius="full"
-                    focusColor="#316e94"
-                  />
-                </div>
+                <Input
+                  label="Alamat"
+                  type="text"
+                  name="alamat"
+                  placeholder="Alamat lengkap"
+                  value={registerForm.alamat}
+                  onChange={handleRegisterChange}
+                  leftIcon={<User size={18} />}
+                  radius="lg"
+                  focusColor="#316e94"
+                />
               </div>
 
-              {/* Error Message */}
-              {errors.submit && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-sm text-red-600">{errors.submit}</p>
-                </div>
-              )}
+            {/* Error Message */}
+            {errors.submit && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-600">{errors.submit}</p>
+              </div>
+            )}
 
             {/* Submit Button */}
             <div className="pt-4">
               <Button
                 variant="primary"
-                bgColor="#de913e"
-                hoverColor="#125475"
+                bgColor="#1a1a1a"
+                hoverColor="#333333"
                 className="w-full"
                 type="submit"
-                radius="full"
+                radius="lg"
                 loading={loading}
               >
-                Buat Akun
+                Create Account
               </Button>
             </div>
           </form>
         </div>
+
+        {/* Footer */}
+        <div className="text-center mt-8 text-xs text-gray-400">
+          Terserah Deh. 2030
+        </div>
       </div>
 
-      {/* Right Side - Image with Wavy Overlay */}
-      <div className="flex-1 relative hidden lg:block min-h-screen overflow-hidden">
+      {/* Right Side - Image with Quote */}
+      <div className="hidden lg:flex flex-1 relative bg-gray-900">
         {/* Background Image */}
         <img
-          src="/image/gurun.jpg"
-          alt="Scenic background"
-          className="absolute inset-0 w-full h-full object-cover"
+          src="/image/slava-auchynnikau-l4MfcEX62E0-unsplash.jpg"
+          alt="Mountain landscape"
+          className="absolute inset-0 w-full h-full object-cover opacity-90"
         />
         
-        {/* Wavy white overlay - SMOOTH CURVE */}
-        <div 
-          className="absolute left-0 top-0 w-4/5 h-full bg-gradient-to-r from-[#faf8f5] via-white/95 to-transparent"
-          style={{
-            clipPath: `path('M 0 0 C 120 100, 80 200, 150 300 C 200 380, 60 460, 130 550 C 180 620, 70 700, 120 800 L 0 800 Z')`
-          }}
-        />
+        {/* Overlay for better text readability */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-black/50"></div>
+        
+        {/* Quote Card */}
+        <div className="absolute bottom-12 left-12 right-12 bg-black/40 backdrop-blur-md rounded-2xl p-6 border border-white/10">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+              <User className="text-white" size={20} />
+            </div>
+            <div>
+              <h3 className="text-white font-semibold text-lg mb-1">John Muir</h3>
+              <p className="text-gray-200 text-sm leading-relaxed italic">
+                "Explore untouched landscapes, breathtaking trails, and hidden wonders of nature."
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
-
