@@ -95,7 +95,7 @@ export default function ProductPage() {
             <FilterSelect
               label=""
               value={filterKategori}
-              onChange={(e) => setFilterKategori(e.target.value)}
+              onChange={setFilterKategori}
               options={[
                 { value: '', label: 'Semua Kategori' },
                 ...categories.map((cat) => ({
