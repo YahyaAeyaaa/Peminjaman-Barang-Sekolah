@@ -57,12 +57,19 @@ export function useLogin() {
     }
 
     try {
-      // Login dengan NextAuth
-      const result = await signIn('credentials', {
+      const signInPromise = signIn('credentials', {
         email: formData.email.trim(),
         password: formData.password,
         redirect: false,
       });
+
+      const timeoutMs = 45000;
+      const result = await Promise.race([
+        signInPromise,
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('timeout')), timeoutMs)
+        ),
+      ]);
 
       if (result?.error) {
         setErrors({ submit: 'Email atau password salah' });
@@ -71,47 +78,43 @@ export function useLogin() {
       }
 
       if (result?.ok) {
-        // Login berhasil, tunggu sebentar untuk session ter-update
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
-        // Fetch session untuk mendapatkan role
+        const callbackUrl = searchParams.get('callbackUrl');
+
+        let role;
         try {
-          const sessionResponse = await fetch('/api/auth/session');
+          const sessionResponse = await fetch('/api/auth/session', {
+            cache: 'no-store',
+          });
           const session = await sessionResponse.json();
-          const role = session?.user?.role;
-          
-          const callbackUrl = searchParams.get('callbackUrl');
-          
-          if (callbackUrl) {
-            // Jika ada callbackUrl, gunakan itu (middleware akan handle role check)
-            router.push(callbackUrl);
-          } else {
-            // Redirect berdasarkan role
-            if (role === 'ADMIN') {
-              router.push('/admin');
-            } else if (role === 'PETUGAS') {
-              router.push('/petugas');
-            } else if (role === 'PEMINJAM') {
-              router.push('/peminjam');
-            } else {
-              router.push('/admin'); // Default fallback
-            }
-          }
-        } catch (err) {
-          // Jika error fetch session, redirect ke default
-          const callbackUrl = searchParams.get('callbackUrl') || '/admin';
-          router.push(callbackUrl);
+          role = session?.user?.role;
+        } catch {
+          role = undefined;
         }
-        
-        router.refresh(); // Refresh untuk update session
-      } else {
-        // Jika result tidak ok dan tidak ada error, mungkin ada masalah
-        setErrors({ submit: 'Terjadi kesalahan saat login' });
-        setLoading(false);
+
+        const destination =
+          callbackUrl ||
+          (role === 'ADMIN'
+            ? '/admin'
+            : role === 'PETUGAS'
+              ? '/petugas'
+              : role === 'PEMINJAM'
+                ? '/peminjam'
+                : '/admin');
+
+        router.push(destination);
+        router.refresh();
+        return;
       }
+
+      setErrors({ submit: 'Terjadi kesalahan saat login' });
+      setLoading(false);
     } catch (error) {
       console.error('Login error:', error);
-      setErrors({ submit: 'Terjadi kesalahan saat login' });
+      const message =
+        error?.message === 'timeout'
+          ? 'Server lambat (cold start). Tunggu ~1 menit lalu coba lagi.'
+          : 'Terjadi kesalahan saat login';
+      setErrors({ submit: message });
       setLoading(false);
     }
   };
